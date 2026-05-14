@@ -252,40 +252,32 @@
 <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="app.js?v=100"></script>
 <script>
-    var mapaIniciado = false;
-    var map, pinActual;
-    var carpetasData = {}; // { nombreCarpeta: { layerGroup, subcarpetas: { nombre: layerGroup } } }
-    const BASE_URL = 'https://api.allorigins.win/raw?url=https://raw.githubusercontent.com/Totalitoplay/kmz-finder/main/';
-
-    /* ── Tabs ── */
-    function switchTab(tab) {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('#view-lista, #view-mapa').forEach(v => v.classList.remove('active'));
-        document.querySelector('.tab-btn[onclick="switchTab(\'' + tab + '\')"]').classList.add('active');
-        document.getElementById('view-' + tab).classList.add('active');
-        if (tab === 'mapa') {
-            if (!mapaIniciado) { iniciarMapa(); mapaIniciado = true; }
-            else setTimeout(() => map.invalidateSize(), 100);
+        var mapaIniciado = false;
+        var map, pinActual;
+        window.carpetasData = {}; 
+        const BASE_URL = 'https://raw.githack.com/Totalitoplay/kmz-finder/main/';
+    
+        /* ── Tabs ── */
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('#view-lista, #view-mapa').forEach(v => v.classList.remove('active'));
+            const btn = document.querySelector('.tab-btn[onclick="switchTab(\'' + tab + '\')"]');
+            if(btn) btn.classList.add('active');
+            document.getElementById('view-' + tab).classList.add('active');
+            if (tab === 'mapa') {
+                if (!mapaIniciado) { iniciarMapa(); mapaIniciado = true; }
+                else setTimeout(() => map.invalidateSize(), 100);
+            }
         }
-    }
 
     /* ── Panel capas ── */
     function togglePanelCapas() {
-        document.getElementById('panel-capas').classList.toggle('abierto');
-    }
+            document.getElementById('panel-capas').classList.toggle('abierto');
+        }
 
-    function toggleTodasCapas(visible) {
-        Object.values(carpetasData).forEach(carpeta => {
-            Object.values(carpeta.subcarpetas).forEach(sub => {
-                if (visible) map.addLayer(sub.layerGroup);
-                else map.removeLayer(sub.layerGroup);
-            });
-        });
-        document.querySelectorAll('#capas-lista input[type="checkbox"]').forEach(cb => cb.checked = visible);
-    }
 
     /* ── Mapa ── */
-    function iniciarMapa() {
+function iniciarMapa() {
         map = L.map('map').setView([25.68, -100.31], 8);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
 
@@ -295,185 +287,149 @@
         document.getElementById('fileInput').addEventListener('change', async function(e) {
             const file = e.target.files[0]; if (!file) return;
             setPinInfo('Cargando ' + file.name + '...');
-            await parsearKMZ(await file.arrayBuffer());
+            const buffer = await file.arrayBuffer();
+            await parsearKMZ(buffer);
             setPinInfo(file.name + ' ✓');
         });
         document.getElementById('btn-ir').addEventListener('click', irManual);
-        ['latInput','lngInput'].forEach(id => {
-            document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') irManual(); });
-        });
     }
 
-    function setPinInfo(txt) { document.getElementById('mapa-pin-info').textContent = txt; }
-
-    function irManual() {
+function setPinInfo(txt) { document.getElementById('mapa-pin-info').textContent = txt; }
+    
+function irManual() {
         const lat = parseFloat(document.getElementById('latInput').value);
         const lng = parseFloat(document.getElementById('lngInput').value);
         if (isNaN(lat) || isNaN(lng)) { setPinInfo('Coords inválidas'); return; }
         irACoordenadas(lat, lng, lat + ', ' + lng);
     }
 
-    function irACoordenadas(lat, lng, label) {
+function irACoordenadas(lat, lng, label) {
         if (!mapaIniciado) { iniciarMapa(); mapaIniciado = true; }
         switchTab('mapa');
         setTimeout(() => {
             map.invalidateSize();
             if (pinActual) map.removeLayer(pinActual);
-            pinActual = L.marker([lat, lng], {
-                icon: L.divIcon({
-                    className: '',
-                    html: '<div style="background:#ea580c;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 0 6px rgba(0,0,0,0.4)"></div>',
-                    iconAnchor: [8, 8]
-                })
-            }).addTo(map);
-            pinActual.bindPopup('<b>' + (label || '') + '</b><br>' + lat + ', ' + lng).openPopup();
+            pinActual = L.marker([lat, lng]).addTo(map);
+            pinActual.bindPopup('<b>' + (label || '') + '</b>').openPopup();
             map.setView([lat, lng], 16);
-            setPinInfo('📍 ' + (label || lat + ', ' + lng));
         }, 150);
     }
 
-    async function cargarKMZDesdeURL(filename) {
+async function cargarKMZDesdeURL(filename) {
         setPinInfo('Cargando ' + filename + '...');
         try {
             const r = await fetch(BASE_URL + filename);
-            if (!r.ok) throw new Error('HTTP ' + r.status);
+            if (!r.ok) throw new Error('Error al descargar archivo');
             await parsearKMZ(await r.arrayBuffer());
             setPinInfo(filename + ' ✓');
         } catch (err) { setPinInfo('Error: ' + err.message); }
     }
-
 async function parsearKMZ(buffer) {
-    // 1. Limpieza total de datos previos
-    if (window.carpetasData) {
-        Object.values(window.carpetasData).forEach(c => {
-            Object.values(c.subcarpetas).forEach(s => {
-                if (map.hasLayer(s.layerGroup)) map.removeLayer(s.layerGroup);
+        // Limpiar
+        if (window.carpetasData) {
+            Object.values(window.carpetasData).forEach(c => {
+                Object.values(c.subcarpetas).forEach(s => map.removeLayer(s.layerGroup));
             });
-        });
-    }
-    window.carpetasData = {};
+        }
+        window.carpetasData = {};
 
-    // 2. Descomprimir KMZ
-    const zip = await JSZip.loadAsync(buffer);
-    const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml'));
-    if (!kmlFile) { alert('No se encontró archivo KML dentro del KMZ'); return; }
-    
-    const kmlText = await kmlFile.async('string');
-    const kmlDoc = new DOMParser().parseFromString(kmlText, 'text/xml');
+        const zip = await JSZip.loadAsync(buffer);
+        const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml'));
+        const kmlText = await kmlFile.async('string');
+        const kmlDoc = new DOMParser().parseFromString(kmlText, 'text/xml');
 
-    // --- FUNCIÓN DE COORDENADAS MEJORADA ---
-    function extraerCoords(el) {
-        if (!el || !el.textContent) return [];
-        // Limpia saltos de línea, pestañas y espacios extra
-        const raw = el.textContent.replace(/[\t\n\r]/g, ' ').trim();
-        return raw.split(/\s+/).map(coordStr => {
-            const p = coordStr.split(',').map(n => parseFloat(n.trim()));
-            // KML es: Longitud, Latitud, [Altitud]
-            // Leaflet necesita: [Latitud, Longitud]
-            if (p.length >= 2 && !isNaN(p[0]) && !isNaN(p[1])) {
-                return [p[1], p[0]]; 
-            }
-            return null;
-        }).filter(Boolean);
-    }
+        const todosLosBounds = [];
 
-    // --- CREADOR DE CAPAS ROBUSTO ---
-    function crearLayerInterno(pm) {
-        const name = pm.querySelector(':scope > name')?.textContent?.trim() || 'Sin nombre';
-        const desc = pm.querySelector(':scope > description')?.textContent?.trim() || '';
-        const popup = `<b>${name}</b>${desc ? '<br>' + desc : ''}`;
-        const layers = [];
+        function extraerCoords(el) {
+            if (!el) return [];
+            const str = el.textContent.replace(/[\t\n\r]/g, ' ').trim();
+            return str.split(/\s+/).map(s => {
+                const p = s.split(',').map(Number);
+                return (p.length >= 2 && !isNaN(p[0])) ? [p[1], p[0]] : null;
+            }).filter(Boolean);
+        }
 
-        // Buscar Puntos
-        pm.querySelectorAll('Point').forEach(pt => {
-            const coords = extraerCoords(pt.querySelector('coordinates'));
-            coords.forEach(pos => {
-                const m = L.circleMarker(pos, {
-                    radius: 6,
-                    fillColor: "#2563eb",
-                    color: "#fff",
-                    weight: 2,
-                    opacity: 1,
-                    fillOpacity: 0.8
-                });
-                m.bindPopup(popup);
-                if (name) m.bindTooltip(name, { direction: 'top', offset: [0, -5] });
-                layers.push(m);
-            });
-        });
-
-        // Buscar Líneas (Rutas)
-        pm.querySelectorAll('LineString').forEach(ls => {
-            const coords = extraerCoords(ls.querySelector('coordinates'));
-            if (coords.length > 1) {
-                const l = L.polyline(coords, { color: '#e74c3c', weight: 4 });
-                l.bindPopup(popup);
-                layers.push(l);
-            }
-        });
-
-        return layers;
-    }
-
-    // --- PROCESADOR DE CARPETAS ---
-    const todosLosBounds = [];
-    function procesarCarpeta(folderEl, layerGroup) {
-        let count = 0;
-        // Solo placemarks que son hijos DIRECTOS para no duplicar
-        folderEl.querySelectorAll(':scope > Placemark').forEach(pm => {
-            const elementos = crearLayerInterno(pm);
-            elementos.forEach(layer => {
-                layer.addTo(layerGroup);
-                count++;
-                if (layer.getLatLng) todosLosBounds.push(layer.getLatLng());
-                if (layer.getBounds) {
-                    const b = layer.getBounds();
-                    if (b.isValid()) {
-                        todosLosBounds.push(b.getNorthEast());
-                        todosLosBounds.push(b.getSouthWest());
-                    }
+        function crearLayer(pm) {
+            const layers = [];
+            const name = pm.querySelector('name')?.textContent || 'Punto';
+            pm.querySelectorAll('Point coordinates').forEach(cEl => {
+                const c = extraerCoords(cEl);
+                if(c[0]) {
+                    const m = L.circleMarker(c[0], { radius: 7, color: '#2563eb', fillOpacity: 0.8 });
+                    m.bindPopup(`<b>${name}</b>`);
+                    layers.push(m);
                 }
             });
-        });
-        return count;
-    }
+            return layers;
+        }
 
-    // --- LÓGICA DE JERARQUÍA ---
-    const rootFolders = [...kmlDoc.querySelectorAll('Document > Folder, kml > Folder')];
-
-    if (rootFolders.length === 0) {
-        const lg = L.layerGroup().addTo(map);
-        window.carpetasData['General'] = { subcarpetas: { 'General': { layerGroup: lg, count: procesarCarpeta(kmlDoc, lg) } } };
-    } else {
-        rootFolders.forEach(root => {
-            const rootName = root.querySelector(':scope > name')?.textContent?.trim() || 'Carpeta';
-            window.carpetasData[rootName] = { subcarpetas: {} };
-
-            const subs = [...root.querySelectorAll(':scope > Folder')];
-            if (subs.length > 0) {
-                subs.forEach(sub => {
-                    const subName = sub.querySelector(':scope > name')?.textContent?.trim() || 'Subcarpeta';
-                    const lg = L.layerGroup().addTo(map);
-                    window.carpetasData[rootName].subcarpetas[subName] = { layerGroup: lg, count: procesarCarpeta(sub, lg) };
+        function procesarFolder(folderEl, layerGroup) {
+            let count = 0;
+            // Solo placemarks directos para evitar duplicidad
+            const pms = folderEl.querySelectorAll(':scope > Placemark');
+            pms.forEach(pm => {
+                crearLayer(pm).forEach(l => {
+                    l.addTo(layerGroup);
+                    count++;
+                    if (l.getLatLng) todosLosBounds.push(l.getLatLng());
                 });
-            } else {
-                const lg = L.layerGroup().addTo(map);
-                window.carpetasData[rootName].subcarpetas[rootName] = { layerGroup: lg, count: procesarCarpeta(root, lg) };
-            }
+            });
+            return count;
+        }
+
+        // Lógica de jerarquía
+        const rootFolders = [...kmlDoc.querySelectorAll('Document > Folder, kml > Folder')];
+        
+        if (rootFolders.length === 0) {
+            const lg = L.layerGroup().addTo(map);
+            window.carpetasData['General'] = { subcarpetas: { 'General': { layerGroup: lg, count: procesarFolder(kmlDoc, lg) } } };
+        } else {
+            rootFolders.forEach(root => {
+                const rName = root.querySelector(':scope > name')?.textContent || 'Carpeta';
+                window.carpetasData[rName] = { subcarpetas: {} };
+                const subs = [...root.querySelectorAll(':scope > Folder')];
+                if (subs.length > 0) {
+                    subs.forEach(sub => {
+                        const sName = sub.querySelector(':scope > name')?.textContent || 'Sub';
+                        const lg = L.layerGroup().addTo(map);
+                        window.carpetasData[rName].subcarpetas[sName] = { layerGroup: lg, count: procesarFolder(sub, lg) };
+                    });
+                } else {
+                    const lg = L.layerGroup().addTo(map);
+                    window.carpetasData[rName].subcarpetas[rName] = { layerGroup: lg, count: procesarFolder(root, lg) };
+                }
+            });
+        }
+
+        if (todosLosBounds.length) map.fitBounds(L.latLngBounds(todosLosBounds));
+        renderizarPanelCapas();
+    }
+
+    function renderizarPanelCapas() {
+        const lista = document.getElementById('capas-lista');
+        lista.innerHTML = '';
+        Object.entries(window.carpetasData).forEach(([rName, data]) => {
+            const div = document.createElement('div');
+            div.className = 'carpeta-root';
+            div.innerHTML = `<div class="carpeta-root-header"><b>${rName}</b></div>`;
+            Object.entries(data.subcarpetas).forEach(([sName, sData]) => {
+                const sDiv = document.createElement('div');
+                sDiv.className = 'subcarpeta-item';
+                sDiv.innerHTML = `
+                    <input type="checkbox" checked onchange="toggleCapa('${rName}','${sName}', this.checked)">
+                    <span class="subcarpeta-nombre">${sName} (${sData.count})</span>
+                `;
+                div.appendChild(sDiv);
+            });
+            lista.appendChild(div);
         });
     }
 
-    // 3. Auto-ajuste de pantalla
-    if (todosLosBounds.length > 0) {
-        const bounds = L.latLngBounds(todosLosBounds);
-        map.fitBounds(bounds, { padding: [20, 20] });
-    } else {
-        console.warn("No se encontraron coordenadas válidas en el KMZ.");
+    function toggleCapa(r, s, v) {
+        const layer = window.carpetasData[r].subcarpetas[s].layerGroup;
+        if (v) map.addLayer(layer); else map.removeLayer(layer);
     }
 
-    renderizarPanelCapas();
-    setPinInfo("KMZ cargado con éxito");
-}
 
     /* ── Overrides app.js ── */
     function renderizarTabla(datos) {
