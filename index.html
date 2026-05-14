@@ -29,25 +29,14 @@
             height: 52px;
             flex-shrink: 0;
         }
-
         #topbar h1 { font-size: 15px; font-weight: 700; color: white; white-space: nowrap; }
-
         #inventarioStatus { font-size: 12px; color: #94a3b8; }
-
         #tabs { display: flex; gap: 4px; margin-left: auto; }
-
         .tab-btn {
-            padding: 6px 20px;
-            border-radius: 6px;
-            border: none;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            background: transparent;
-            color: #94a3b8;
-            font-family: inherit;
-            width: auto;
-            transition: all 0.15s;
+            padding: 6px 20px; border-radius: 6px; border: none;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            background: transparent; color: #94a3b8;
+            font-family: inherit; width: auto; transition: all 0.15s;
         }
         .tab-btn:hover { background: #334155; color: white; }
         .tab-btn.active { background: #2563eb; color: white; }
@@ -55,143 +44,124 @@
         #view-lista, #view-mapa { flex: 1; overflow: hidden; display: none; flex-direction: column; }
         #view-lista.active, #view-mapa.active { display: flex; }
 
-        /* Lista */
+        /* ── Lista ── */
         #lista-scroll {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-            align-items: center;
+            flex: 1; overflow-y: auto; padding: 20px;
+            display: flex; flex-direction: column; gap: 14px; align-items: center;
         }
-
         .card {
-            background: white;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            padding: 20px;
-            width: 100%;
-            max-width: 860px;
+            background: white; border-radius: 12px; border: 1px solid #e2e8f0;
+            padding: 20px; width: 100%; max-width: 860px;
             box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
         }
-
-        .card-title {
-            font-size: 12px;
-            font-weight: 700;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 14px;
-        }
-
+        .card-title { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px; }
         label { display: block; font-weight: 600; font-size: 13px; color: #64748b; margin-bottom: 6px; }
-
-        textarea {
-            width: 100%;
-            height: 90px;
-            padding: 10px 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            font-family: inherit;
-            font-size: 13px;
-            resize: vertical;
-        }
+        textarea { width: 100%; height: 90px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 13px; resize: vertical; }
         textarea:focus { outline: 2px solid #93c5fd; border-color: #2563eb; }
-
-        .btn-primary {
-            background: #2563eb; color: white; border: none;
-            padding: 11px 20px; border-radius: 8px;
-            font-weight: 700; cursor: pointer; font-size: 14px;
-            font-family: inherit; width: 100%; transition: background 0.15s;
-        }
+        .btn-primary { background: #2563eb; color: white; border: none; padding: 11px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px; font-family: inherit; width: 100%; transition: background 0.15s; }
         .btn-primary:hover { background: #1d4ed8; }
-
-        .btn-ghost {
-            background: #f1f5f9; color: #475569; border: none;
-            padding: 9px 20px; border-radius: 8px;
-            font-weight: 600; cursor: pointer; font-size: 13px;
-            font-family: inherit; width: 100%; margin-top: 8px; transition: background 0.15s;
-        }
+        .btn-ghost { background: #f1f5f9; color: #475569; border: none; padding: 9px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; font-family: inherit; width: 100%; margin-top: 8px; transition: background 0.15s; }
         .btn-ghost:hover { background: #e2e8f0; }
 
         #resultCounter { display: none; font-size: 13px; }
-
         #summaryStats { display: none; }
         #statsContent { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 10px; }
-
-        .stat-card {
-            background: #f1f5f9; padding: 12px; border-radius: 8px;
-            border-left: 4px solid #2563eb; cursor: pointer;
-            transition: transform 0.15s, background 0.15s;
-        }
+        .stat-card { background: #f1f5f9; padding: 12px; border-radius: 8px; border-left: 4px solid #2563eb; cursor: pointer; transition: transform 0.15s, background 0.15s; }
         .stat-card:hover { transform: scale(1.03); background: #e2e8f0; }
 
-        #resultTable {
-            width: 100%; max-width: 860px;
-            border-collapse: separate; border-spacing: 0;
-            background: white; border-radius: 12px; overflow: hidden;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
-        }
-        #resultTable thead th {
-            background: #1e293b; color: #f8fafc;
-            text-align: left; padding: 13px 16px;
-            font-size: 12px; text-transform: uppercase;
-            letter-spacing: 0.05em; cursor: pointer; user-select: none;
-        }
+        #resultTable { width: 100%; max-width: 860px; border-collapse: separate; border-spacing: 0; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgb(0 0 0 / 0.06); }
+        #resultTable thead th { background: #1e293b; color: #f8fafc; text-align: left; padding: 13px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; user-select: none; }
         #resultTable thead th:hover { background: #334155; }
         #resultTable tbody td { padding: 11px 16px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
         #resultTable tbody tr:last-child td { border-bottom: none; }
         #resultTable tbody tr:hover { background: #f8faff; }
-
-        .qr-badge {
-            background: #fff7ed; color: #ea580c;
-            padding: 3px 8px; border-radius: 6px;
-            font-weight: 700; border: 1px solid #ffedd5;
-            cursor: pointer; font-size: 12px;
-        }
-
-        .btn-ver-mapa {
-            background: #2563eb; color: white; border: none;
-            padding: 5px 12px; border-radius: 6px;
-            font-size: 12px; font-weight: 600;
-            cursor: pointer; font-family: inherit;
-            white-space: nowrap; transition: background 0.15s;
-        }
+        .qr-badge { background: #fff7ed; color: #ea580c; padding: 3px 8px; border-radius: 6px; font-weight: 700; border: 1px solid #ffedd5; cursor: pointer; font-size: 12px; }
+        .btn-ver-mapa { background: #2563eb; color: white; border: none; padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; transition: background 0.15s; }
         .btn-ver-mapa:hover { background: #1d4ed8; }
-
         .no-encontrada { background: #fff1f2 !important; color: #be123c; }
 
-        /* Mapa */
+        /* ── Mapa ── */
         #mapa-toolbar {
             background: #1e293b; padding: 10px 20px;
-            display: flex; align-items: center; gap: 10px;
-            flex-wrap: wrap; flex-shrink: 0;
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0;
         }
         #mapa-toolbar select,
-        #mapa-toolbar input[type="text"] {
-            padding: 6px 10px; border-radius: 6px; border: none;
-            font-size: 13px; background: #334155; color: white; font-family: inherit;
-        }
+        #mapa-toolbar input[type="text"] { padding: 6px 10px; border-radius: 6px; border: none; font-size: 13px; background: #334155; color: white; font-family: inherit; }
         #mapa-toolbar input[type="text"]::placeholder { color: #94a3b8; }
         #mapa-toolbar input[type="text"] { width: 110px; }
-
-        #btn-ir {
-            background: #ea580c; color: white; border: none;
-            padding: 6px 14px; border-radius: 6px;
-            font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
-        }
+        #btn-ir { background: #ea580c; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
         #btn-ir:hover { background: #c2410c; }
-
+        #btn-capas { background: #0f6e56; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
+        #btn-capas:hover { background: #085041; }
         #mapa-pin-info { font-size: 12px; color: #94a3b8; }
 
+        /* ── Mapa contenedor ── */
+        #mapa-body { flex: 1; display: flex; overflow: hidden; position: relative; }
         #map { flex: 1; }
+
+        /* ── Panel capas ── */
+        #panel-capas {
+            width: 280px;
+            background: white;
+            border-left: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            transform: translateX(100%);
+            transition: transform 0.25s ease;
+            position: absolute;
+            right: 0; top: 0; bottom: 0;
+            z-index: 1000;
+            box-shadow: -4px 0 12px rgb(0 0 0 / 0.1);
+        }
+        #panel-capas.abierto { transform: translateX(0); }
+
+        #capas-header {
+            background: #1e293b; color: white; padding: 12px 16px;
+            display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+        }
+        #capas-header span { font-size: 13px; font-weight: 700; }
+        #btn-cerrar-capas { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 18px; padding: 0; width: auto; line-height: 1; }
+        #btn-cerrar-capas:hover { color: white; }
+
+        #capas-acciones { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; display: flex; gap: 8px; flex-shrink: 0; }
+        .btn-capas-accion { flex: 1; background: #f1f5f9; color: #475569; border: none; padding: 6px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+        .btn-capas-accion:hover { background: #e2e8f0; }
+
+        #capas-lista { flex: 1; overflow-y: auto; padding: 8px 0; }
+
+        /* Carpeta raíz */
+        .carpeta-root { border-bottom: 1px solid #f1f5f9; }
+        .carpeta-root-header {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 14px; cursor: pointer;
+            background: #f8fafc; user-select: none;
+        }
+        .carpeta-root-header:hover { background: #f1f5f9; }
+        .carpeta-nombre-root { font-size: 13px; font-weight: 700; color: #1e293b; flex: 1; }
+        .carpeta-toggle { font-size: 11px; color: #94a3b8; transition: transform 0.2s; }
+        .carpeta-toggle.abierto { transform: rotate(90deg); }
+
+        /* Subcarpetas */
+        .subcarpetas { display: none; padding-left: 0; }
+        .subcarpetas.visible { display: block; }
+
+        .subcarpeta-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 14px 8px 28px;
+        }
+        .subcarpeta-item:hover { background: #f8faff; }
+        .subcarpeta-item input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: #2563eb; flex-shrink: 0; }
+        .subcarpeta-nombre { font-size: 12px; color: #334155; flex: 1; line-height: 1.3; }
+        .subcarpeta-count { font-size: 11px; color: #94a3b8; white-space: nowrap; }
+
+        /* Checkbox de carpeta raíz */
+        .carpeta-root-header input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: #2563eb; flex-shrink: 0; }
 
         @media (max-width: 600px) {
             #lista-scroll { padding: 12px; }
             #mapa-toolbar { padding: 8px 12px; gap: 6px; }
             #mapa-toolbar input[type="text"] { width: 80px; }
+            #panel-capas { width: 100%; }
         }
     </style>
 </head>
@@ -209,7 +179,6 @@
 <!-- Vista Lista -->
 <div id="view-lista" class="active">
     <div id="lista-scroll">
-
         <div class="card">
             <div class="card-title">Cargar clientes</div>
             <div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px;">
@@ -245,7 +214,6 @@
             </thead>
             <tbody></tbody>
         </table>
-
     </div>
 </div>
 
@@ -261,9 +229,23 @@
         <input type="text" id="latInput" placeholder="Latitud">
         <input type="text" id="lngInput" placeholder="Longitud">
         <button id="btn-ir">📍 Ir</button>
+        <button id="btn-capas" onclick="togglePanelCapas()">🗂 Capas</button>
         <span id="mapa-pin-info"></span>
     </div>
-    <div id="map"></div>
+    <div id="mapa-body">
+        <div id="map"></div>
+        <div id="panel-capas">
+            <div id="capas-header">
+                <span>🗂 Capas del KMZ</span>
+                <button id="btn-cerrar-capas" onclick="togglePanelCapas()">✕</button>
+            </div>
+            <div id="capas-acciones">
+                <button class="btn-capas-accion" onclick="toggleTodasCapas(true)">✅ Todas</button>
+                <button class="btn-capas-accion" onclick="toggleTodasCapas(false)">⬜ Ninguna</button>
+            </div>
+            <div id="capas-lista"></div>
+        </div>
+    </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -271,9 +253,11 @@
 <script src="app.js?v=100"></script>
 <script>
     var mapaIniciado = false;
-    var map, kmzLayer, pinActual;
+    var map, pinActual;
+    var carpetasData = {}; // { nombreCarpeta: { layerGroup, subcarpetas: { nombre: layerGroup } } }
     const BASE_URL = 'https://api.allorigins.win/raw?url=https://raw.githubusercontent.com/Totalitoplay/kmz-finder/main/';
 
+    /* ── Tabs ── */
     function switchTab(tab) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('#view-lista, #view-mapa').forEach(v => v.classList.remove('active'));
@@ -285,17 +269,31 @@
         }
     }
 
+    /* ── Panel capas ── */
+    function togglePanelCapas() {
+        document.getElementById('panel-capas').classList.toggle('abierto');
+    }
+
+    function toggleTodasCapas(visible) {
+        Object.values(carpetasData).forEach(carpeta => {
+            Object.values(carpeta.subcarpetas).forEach(sub => {
+                if (visible) map.addLayer(sub.layerGroup);
+                else map.removeLayer(sub.layerGroup);
+            });
+        });
+        document.querySelectorAll('#capas-lista input[type="checkbox"]').forEach(cb => cb.checked = visible);
+    }
+
+    /* ── Mapa ── */
     function iniciarMapa() {
         map = L.map('map').setView([25.68, -100.31], 8);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
-        kmzLayer = L.layerGroup().addTo(map);
 
         document.getElementById('kmzSelect').addEventListener('change', function() {
             if (this.value) cargarKMZDesdeURL(this.value);
         });
         document.getElementById('fileInput').addEventListener('change', async function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+            const file = e.target.files[0]; if (!file) return;
             setPinInfo('Cargando ' + file.name + '...');
             await parsearKMZ(await file.arrayBuffer());
             setPinInfo(file.name + ' ✓');
@@ -345,11 +343,18 @@
     }
 
     async function parsearKMZ(buffer) {
+        // Limpiar capas anteriores
+        Object.values(carpetasData).forEach(c => {
+            Object.values(c.subcarpetas).forEach(s => map.removeLayer(s.layerGroup));
+        });
+        carpetasData = {};
+
         const zip = await JSZip.loadAsync(buffer);
         const kmlFile = Object.values(zip.files).find(f => f.name.endsWith('.kml'));
         if (!kmlFile) { alert('No se encontró KML'); return; }
         const kmlDoc = new DOMParser().parseFromString(await kmlFile.async('string'), 'text/xml');
 
+        // Estilos
         const styles = {};
         kmlDoc.querySelectorAll('Style').forEach(s => {
             const id = s.getAttribute('id'); if (!id) return;
@@ -375,12 +380,11 @@
             }).filter(Boolean);
         }
 
-        const layers = [];
-        kmlDoc.querySelectorAll('Placemark').forEach(pm => {
-            const name = pm.querySelector('name')?.textContent?.trim() || '';
-            const desc = pm.querySelector('description')?.textContent?.trim() || '';
-            const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
+        function crearLayer(pm, style) {
+            const name = pm.querySelector(':scope > name')?.textContent?.trim() || '';
+            const desc = pm.querySelector(':scope > description')?.textContent?.trim() || '';
             const popup = '<b>' + name + '</b>' + (desc ? '<br>' + desc : '');
+            const layers = [];
 
             pm.querySelectorAll('Polygon').forEach(poly => {
                 const c = coords(poly.querySelector('outerBoundaryIs coordinates'));
@@ -404,15 +408,157 @@
                     : L.marker(c[0]);
                 m.bindPopup(popup); if (name) m.bindTooltip(name, { permanent: false, direction: 'top' }); layers.push(m);
             });
-        });
+            return layers;
+        }
 
-        kmzLayer.clearLayers();
-        if (!layers.length) { alert('Sin geometrías válidas'); return; }
-        layers.forEach(l => kmzLayer.addLayer(l));
-        map.fitBounds(kmzLayer.getBounds());
+        // Recorrer carpetas raíz → subcarpetas → placemarks
+        const todosLosBounds = [];
+
+        const rootFolders = [...kmlDoc.querySelectorAll('Document > Folder, kml > Folder')];
+
+        // Si no hay carpetas, meter todo en una carpeta "General"
+        if (rootFolders.length === 0) {
+            const lg = L.layerGroup().addTo(map);
+            carpetasData['General'] = { subcarpetas: { 'General': { layerGroup: lg, count: 0 } } };
+            kmlDoc.querySelectorAll('Placemark').forEach(pm => {
+                const styleUrl = pm.querySelector('styleUrl')?.textContent?.trim();
+                const style = styles[styleUrl] || {};
+                crearLayer(pm, style).forEach(l => { lg.addLayer(l); carpetasData['General'].subcarpetas['General'].count++; });
+            });
+        } else {
+            rootFolders.forEach(rootFolder => {
+                const rootName = rootFolder.querySelector(':scope > name')?.textContent?.trim() || 'Sin nombre';
+                carpetasData[rootName] = { subcarpetas: {} };
+
+                // Subcarpetas dentro de esta carpeta raíz
+                const subFolders = [...rootFolder.querySelectorAll(':scope > Folder')];
+
+                if (subFolders.length === 0) {
+                    // Sin subcarpetas: meter placemarks directos
+                    const lg = L.layerGroup().addTo(map);
+                    carpetasData[rootName].subcarpetas[rootName] = { layerGroup: lg, count: 0 };
+                    rootFolder.querySelectorAll(':scope > Placemark').forEach(pm => {
+                        const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
+                        crearLayer(pm, style).forEach(l => { lg.addLayer(l); carpetasData[rootName].subcarpetas[rootName].count++; });
+                    });
+                } else {
+                    subFolders.forEach(subFolder => {
+                        const subName = subFolder.querySelector(':scope > name')?.textContent?.trim() || 'Sin nombre';
+                        const lg = L.layerGroup().addTo(map);
+                        carpetasData[rootName].subcarpetas[subName] = { layerGroup: lg, count: 0 };
+
+                        subFolder.querySelectorAll('Placemark').forEach(pm => {
+                            const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
+                            crearLayer(pm, style).forEach(l => {
+                                lg.addLayer(l);
+                                carpetasData[rootName].subcarpetas[subName].count++;
+                                if (l.getLatLng) todosLosBounds.push(l.getLatLng());
+                                else if (l.getBounds) { const b = l.getBounds(); todosLosBounds.push(b.getNorthEast(), b.getSouthWest()); }
+                            });
+                        });
+
+                        // Placemarks directos en subcarpeta
+                        subFolder.querySelectorAll(':scope > Placemark').forEach(pm => {
+                            const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
+                            crearLayer(pm, style).forEach(l => {
+                                lg.addLayer(l);
+                                carpetasData[rootName].subcarpetas[subName].count++;
+                            });
+                        });
+                    });
+
+                    // Placemarks directos en raíz (fuera de subcarpetas)
+                    const directos = [...rootFolder.querySelectorAll(':scope > Placemark')];
+                    if (directos.length) {
+                        const lg = L.layerGroup().addTo(map);
+                        carpetasData[rootName].subcarpetas['(Sin subcarpeta)'] = { layerGroup: lg, count: 0 };
+                        directos.forEach(pm => {
+                            const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
+                            crearLayer(pm, style).forEach(l => { lg.addLayer(l); carpetasData[rootName].subcarpetas['(Sin subcarpeta)'].count++; });
+                        });
+                    }
+                }
+            });
+        }
+
+        // Ajustar vista
+        if (todosLosBounds.length) map.fitBounds(L.latLngBounds(todosLosBounds));
+
+        // Renderizar panel capas
+        renderizarPanelCapas();
     }
 
-    /* Override renderizarTabla */
+    function renderizarPanelCapas() {
+        const lista = document.getElementById('capas-lista');
+        lista.innerHTML = '';
+
+        Object.entries(carpetasData).forEach(([rootName, data]) => {
+            const subEntries = Object.entries(data.subcarpetas);
+            const solamente1 = subEntries.length === 1 && subEntries[0][0] === rootName;
+
+            const rootDiv = document.createElement('div');
+            rootDiv.className = 'carpeta-root';
+
+            if (solamente1) {
+                // Sin subcarpetas: checkbox simple
+                const [subName, subData] = subEntries[0];
+                rootDiv.innerHTML = `
+                    <div class="carpeta-root-header">
+                        <input type="checkbox" checked onchange="toggleSubcarpeta('${rootName}','${subName}', this.checked)">
+                        <span class="carpeta-nombre-root">${rootName}</span>
+                        <span class="subcarpeta-count">${subData.count}</span>
+                    </div>`;
+            } else {
+                // Con subcarpetas: expandible
+                const todosChecked = subEntries.every(([,s]) => map.hasLayer(s.layerGroup));
+                const uid = 'folder_' + Math.random().toString(36).slice(2);
+                rootDiv.innerHTML = `
+                    <div class="carpeta-root-header" onclick="toggleFolder('${uid}', event)">
+                        <input type="checkbox" ${todosChecked ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleCarpetaRoot('${rootName}', this.checked)">
+                        <span class="carpeta-nombre-root">${rootName}</span>
+                        <span class="carpeta-toggle" id="toggle_${uid}">▶</span>
+                    </div>
+                    <div class="subcarpetas" id="${uid}">
+                        ${subEntries.map(([subName, subData]) => `
+                        <div class="subcarpeta-item">
+                            <input type="checkbox" checked
+                                onchange="toggleSubcarpeta('${rootName.replace(/'/g,"\\'")}','${subName.replace(/'/g,"\\'")}', this.checked)">
+                            <span class="subcarpeta-nombre">${subName}</span>
+                            <span class="subcarpeta-count">${subData.count}</span>
+                        </div>`).join('')}
+                    </div>`;
+            }
+
+            lista.appendChild(rootDiv);
+        });
+    }
+
+    function toggleFolder(uid, event) {
+        const sub = document.getElementById(uid);
+        const toggle = document.getElementById('toggle_' + uid);
+        sub.classList.toggle('visible');
+        toggle.classList.toggle('abierto');
+    }
+
+    function toggleSubcarpeta(rootName, subName, visible) {
+        const sub = carpetasData[rootName]?.subcarpetas[subName];
+        if (!sub) return;
+        if (visible) map.addLayer(sub.layerGroup);
+        else map.removeLayer(sub.layerGroup);
+    }
+
+    function toggleCarpetaRoot(rootName, visible) {
+        const carpeta = carpetasData[rootName];
+        if (!carpeta) return;
+        Object.values(carpeta.subcarpetas).forEach(sub => {
+            if (visible) map.addLayer(sub.layerGroup);
+            else map.removeLayer(sub.layerGroup);
+        });
+        // Sincronizar checkboxes de subcarpetas
+        renderizarPanelCapas();
+    }
+
+    /* ── Overrides app.js ── */
     function renderizarTabla(datos) {
         const tbody = document.querySelector('#resultTable tbody');
         if (!datos.length) {
@@ -427,19 +573,16 @@
                     <td data-label="CUENTA"><b>${res.cuenta}</b></td>
                     <td data-label="QR"><span class="qr-badge" onclick="copiarQR('${res.qr}', this)" title="Tap para copiar">${res.qr}</span></td>
                     <td data-label="COORD" style="font-size:11px;color:#64748b;">${res.lat}, ${res.lon}</td>
-                    <td><button class="btn-ver-mapa" onclick="irACoordenadas(${lat}, ${lng}, '${res.qr} · ${res.cuenta}')">🗺 Ver</button></td>
+                    <td><button class="btn-ver-mapa" onclick="irACoordenadas(${lat},${lng},'${res.qr} · ${res.cuenta}')">🗺 Ver</button></td>
                 </tr>`;
             } else {
                 return `<tr class="no-encontrada">
-                    <td>❌</td>
-                    <td>${res.cuenta}</td>
-                    <td colspan="3">No encontrada en inventario</td>
+                    <td>❌</td><td>${res.cuenta}</td><td colspan="3">No encontrada en inventario</td>
                 </tr>`;
             }
         }).join('');
     }
 
-    /* Override mostrarResumen */
     function mostrarResumen(conteo) {
         const contenedorStats = document.getElementById('summaryStats');
         const contenido = document.getElementById('statsContent');
