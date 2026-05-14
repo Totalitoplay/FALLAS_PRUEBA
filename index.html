@@ -323,7 +323,7 @@
 <script>
     var mapaIniciado = false;
     var map, pinActual;
-    var carpetasData = {}; // { r: { s: { ss: { layerGroup, count } } } }
+    
     const BASE_URL = '/kmz/';
 
     /* ── Tabs ── */
@@ -339,218 +339,136 @@
     }
 
     /* ── Panel capas ── */
-    function togglePanelCapas() {
-        document.getElementById('panel-capas').classList.toggle('abierto');
-        setTimeout(() => map.invalidateSize(), 300);
-    }
-
+    // 1. Nuevas variables globales para soportar niveles infinitos
+    var arbolCarpetas = [];
+    var folderMap = {};
+    
+    // 2. Funciones de la Interfaz del Panel
     function toggleFolder(uid, event) {
         if (event) event.stopPropagation();
         const sub = document.getElementById(uid);
         const toggle = document.getElementById('toggle_' + uid);
-        if (sub) sub.classList.toggle('visible');
-        if (toggle) toggle.classList.toggle('abierto');
+        if (sub) {
+            const isVisible = sub.style.display !== 'none';
+            sub.style.display = isVisible ? 'none' : 'block';
+            if (toggle) {
+                if (isVisible) toggle.classList.remove('abierto');
+                else toggle.classList.add('abierto');
+            }
+        }
     }
-
-    function esc(s) { 
-    return String(s)
-        .replace(/\\/g, '\\\\')
-        .replace(/'/g, "\\'")
-        .replace(/"/g, '&quot;'); // Evita que se rompan los atributos HTML
-    }
-
+    
     function toggleNivel(elemento) {
-        // 1. Detectar si la orden viene de un clic (elemento) o del botón "Todas" (booleano)
         const visible = typeof elemento === 'boolean' ? elemento : elemento.checked;
     
-        // 2. Efecto Cascada: Si damos clic en una carpeta (Nivel 1 o 2), marcamos/desmarcamos sus hijos
+        // Cascada visual: Si damos clic a una carpeta, marcamos/desmarcamos todo lo de adentro
         if (typeof elemento !== 'boolean') {
-            const contenedorPadre = elemento.closest('.n1-header, .n2-header');
-            if (contenedorPadre) {
-                const subcarpetas = contenedorPadre.nextElementSibling;
-                if (subcarpetas && subcarpetas.classList.contains('subcarpetas')) {
-                    subcarpetas.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = visible);
-                }
+            const header = elemento.closest('.header-carpeta');
+            if (header && header.nextElementSibling && header.nextElementSibling.classList.contains('subcarpetas')) {
+                header.nextElementSibling.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    cb.checked = visible;
+                });
             }
         }
     
-        // 3. Sincronización Real: Leemos el DOM y actualizamos el mapa (Evita desincronización)
-        document.querySelectorAll('.n3-item').forEach(item => {
-            const cb = item.querySelector('input[type="checkbox"]');
-            if (!cb) return;
-            
-            // Obtenemos los nombres exactos guardados en memoria, sin importar símbolos raros
-            const dataR = item.dataset.r;
-            const dataS = item.dataset.s;
-            const dataSS = item.dataset.ss;
-            
-            // Buscamos la capa en memoria
-            const capa = carpetasData[dataR] && carpetasData[dataR][dataS] && carpetasData[dataR][dataS][dataSS];
-            
-            if (capa) {
-                if (cb.checked) {
-                    map.addLayer(capa.layerGroup);
-                } else {
-                    map.removeLayer(capa.layerGroup);
-                }
+        // Sincronización real con el mapa
+        document.querySelectorAll('.cb-capa').forEach(cb => {
+            const uid = cb.dataset.uid;
+            const capa = folderMap[uid];
+            if (capa && capa.lg) { 
+                if (cb.checked) map.addLayer(capa.lg);
+                else map.removeLayer(capa.lg);
             }
         });
     }
-
+    
     function toggleTodasCapas(visible) {
-        document.querySelectorAll('#capas-lista input[type="checkbox"]').forEach(cb => cb.checked = visible);
-        toggleNivel(visible); // Esto fuerza la actualización del mapa
+        document.querySelectorAll('.cb-capa').forEach(cb => cb.checked = visible);
+        toggleNivel(visible);
     }
-
-    function resaltarCarpeta(r, s, ss) {
-        document.getElementById('panel-capas').classList.add('abierto');
-        setTimeout(() => map.invalidateSize(), 300);
-
-        // Quitar resaltados
-        document.querySelectorAll('.n3-item').forEach(el => el.classList.remove('resaltado'));
-
-        // Encontrar y resaltar
-        document.querySelectorAll('.n3-item').forEach(item => {
-            if (item.dataset.r === r && item.dataset.s === s && item.dataset.ss === ss) {
-                item.classList.add('resaltado');
-                item.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-                // Expandir padres si están cerrados
-                const uid2 = item.closest('.subcarpetas')?.id;
-                const uid1 = item.closest('.subcarpetas')?.closest('.subcarpetas')?.id;
-                if (uid2) { document.getElementById(uid2)?.classList.add('visible'); document.getElementById('toggle_' + uid2)?.classList.add('abierto'); }
-                if (uid1) { document.getElementById(uid1)?.classList.add('visible'); document.getElementById('toggle_' + uid1)?.classList.add('abierto'); }
-            }
+    
+    function filtrarCapas(texto) {
+        const term = texto.toLowerCase().trim();
+    
+        // Primero ocultamos/mostramos según coincidencia directa
+        document.querySelectorAll('.header-carpeta').forEach(header => {
+            const nombre = header.querySelector('.nombre-capa').textContent.toLowerCase();
+            if (nombre.includes(term)) header.style.display = 'flex';
+            else header.style.display = 'none';
         });
+    
+        // Luego hacemos un barrido "hacia arriba" para abrir los padres si un hijo coincidió
+        if (term !== '') {
+            const headers = Array.from(document.querySelectorAll('.header-carpeta')).reverse();
+            headers.forEach(header => {
+                const sub = header.nextElementSibling;
+                if (sub && sub.classList.contains('subcarpetas')) {
+                    const tieneHijoVisible = Array.from(sub.querySelectorAll('.header-carpeta')).some(h => h.style.display !== 'none');
+                    if (tieneHijoVisible) {
+                        header.style.display = 'flex';
+                        sub.style.display = 'block';
+                        const toggle = header.querySelector('.carpeta-toggle');
+                        if(toggle) toggle.classList.add('abierto');
+                    }
+                }
+            });
+        } else {
+            // Restaurar estado inicial si no hay búsqueda
+            document.querySelectorAll('.header-carpeta').forEach(h => h.style.display = 'flex');
+            document.querySelectorAll('.subcarpetas').forEach(sub => {
+                sub.style.display = 'none';
+                const toggle = document.getElementById('toggle_' + sub.id);
+                if(toggle) toggle.classList.remove('abierto');
+            });
+        }
     }
-
-    /* ── Renderizar panel 3 niveles ── */
+    
+    // 3. Renderizado recursivo de carpetas
     function renderizarPanelCapas() {
         const lista = document.getElementById('capas-lista');
         lista.innerHTML = '';
     
-        Object.entries(carpetasData).forEach(([r, nivel2]) => {
-            const uid1 = 'u1_' + Math.random().toString(36).slice(2);
-            const wrapper1 = document.createElement('div');
-    
-            wrapper1.innerHTML = `
-                <div class="n1-header" onclick="toggleFolder('${uid1}', event)">
-                    <input type="checkbox" checked onclick="event.stopPropagation()" onchange="toggleNivel(this)">
-                    <span class="n1-nombre">${r}</span>
-                    <span class="carpeta-toggle" id="toggle_${uid1}">▶</span>
+        function crearHTML(carpeta, nivel) {
+            const div = document.createElement('div');
+            const indent = nivel * 14; // Indentación dinámica según la profundidad
+            const tieneHijos = carpeta.hijos.length > 0;
+            
+            div.innerHTML = `
+                <div class="header-carpeta" style="display:flex; align-items:center; padding: 7px 14px; cursor:pointer; border-bottom:1px solid #f1f5f9; padding-left: ${14 + indent}px" onclick="toggleFolder('${carpeta.uid}', event)">
+                    <input type="checkbox" checked class="cb-capa" data-uid="${carpeta.uid}" onclick="event.stopPropagation()" onchange="toggleNivel(this)" style="margin-right:8px;">
+                    <span style="font-size:12px; font-weight:${nivel === 0 ? '700' : '600'}; color:#334155; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" class="nombre-capa">${carpeta.nombre}</span>
+                    <span style="font-size:10px; color:#94a3b8; margin-right:8px;">${carpeta.cantidadTotal}</span>
+                    ${tieneHijos ? `<span class="carpeta-toggle" id="toggle_${carpeta.uid}" style="font-size:10px; color:#94a3b8; transition: transform 0.2s;">▶</span>` : '<span style="width:10px"></span>'}
                 </div>
-                <div class="subcarpetas" id="${uid1}"></div>`;
-            lista.appendChild(wrapper1);
+                ${tieneHijos ? `<div class="subcarpetas" id="${carpeta.uid}" style="display:none;"></div>` : ''}
+            `;
     
-            const cont1 = document.getElementById(uid1);
-    
-            Object.entries(nivel2).forEach(([s, nivel3]) => {
-                const uid2 = 'u2_' + Math.random().toString(36).slice(2);
-                const wrapper2 = document.createElement('div');
-    
-                wrapper2.innerHTML = `
-                    <div class="n2-header" onclick="toggleFolder('${uid2}', event)">
-                        <input type="checkbox" checked onclick="event.stopPropagation()" onchange="toggleNivel(this)">
-                        <span class="n2-nombre">${s}</span>
-                        <span class="carpeta-toggle" id="toggle_${uid2}">▶</span>
-                    </div>
-                    <div class="subcarpetas" id="${uid2}"></div>`;
-                cont1.appendChild(wrapper2);
-    
-                const cont2 = document.getElementById(uid2);
-    
-                Object.entries(nivel3).forEach(([ss, data]) => {
-                    const item = document.createElement('div');
-                    item.className = 'n3-item';
-                    
-                    // Asignamos las variables de forma nativa para evitar que los caracteres especiales (/, "", -) rompan el HTML
-                    item.dataset.r = r;
-                    item.dataset.s = s;
-                    item.dataset.ss = ss;
-                    
-                    item.innerHTML = `
-                        <input type="checkbox" checked onchange="toggleNivel(this)">
-                        <span class="n3-nombre">${ss}</span>
-                        <span class="n3-count">${data.count}</span>`;
-                    cont2.appendChild(item);
+            if (tieneHijos) {
+                const subContenedor = div.querySelector('.subcarpetas');
+                carpeta.hijos.forEach(hijo => {
+                    subContenedor.appendChild(crearHTML(hijo, nivel + 1));
                 });
-            });
+            }
+            return div;
+        }
+    
+        arbolCarpetas.forEach(raiz => {
+            lista.appendChild(crearHTML(raiz, 0));
         });
     }
-
-    /* ── Mapa ── */
-    function iniciarMapa() {
-        map = L.map('map').setView([25.68, -100.31], 8);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
-
-        document.getElementById('kmzSelect').addEventListener('change', function() {
-            if (this.value) cargarKMZDesdeURL(this.value);
-        });
-        document.getElementById('fileInput').addEventListener('change', async function(e) {
-            const file = e.target.files[0]; if (!file) return;
-            setPinInfo('Cargando ' + file.name + '...');
-            await parsearKMZ(await file.arrayBuffer());
-            setPinInfo(file.name + ' ✓');
-        });
-        document.getElementById('btn-ir').addEventListener('click', irManual);
-        ['latInput','lngInput'].forEach(id => {
-            document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') irManual(); });
-        });
-    }
-
-    function setPinInfo(txt) { document.getElementById('mapa-pin-info').textContent = txt; }
-
-    function irManual() {
-        const lat = parseFloat(document.getElementById('latInput').value);
-        const lng = parseFloat(document.getElementById('lngInput').value);
-        if (isNaN(lat) || isNaN(lng)) { setPinInfo('Coords inválidas'); return; }
-        irACoordenadas(lat, lng, lat + ', ' + lng);
-    }
-
-    function irACoordenadas(lat, lng, label) {
-        if (!mapaIniciado) { iniciarMapa(); mapaIniciado = true; }
-        switchTab('mapa');
-        setTimeout(() => {
-            map.invalidateSize();
-            if (pinActual) map.removeLayer(pinActual);
-            pinActual = L.marker([lat, lng], {
-                icon: L.divIcon({
-                    className: '',
-                    html: '<div style="background:#ea580c;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 0 6px rgba(0,0,0,0.4)"></div>',
-                    iconAnchor: [8, 8]
-                })
-            }).addTo(map);
-            pinActual.bindPopup('<b>' + (label || '') + '</b><br>' + lat + ', ' + lng).openPopup();
-            map.setView([lat, lng], 16);
-            setPinInfo('📍 ' + (label || lat + ', ' + lng));
-        }, 150);
-    }
-
-    async function cargarKMZDesdeURL(filename) {
-        setPinInfo('Cargando ' + filename + '...');
-        try {
-            const r = await fetch(BASE_URL + filename);
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            await parsearKMZ(await r.arrayBuffer());
-            setPinInfo(filename + ' ✓');
-        } catch (err) { setPinInfo('Error: ' + err.message); }
-    }
-
+    
+    // 4. Parser Recursivo del KML
     async function parsearKMZ(buffer) {
-        // Limpiar capas anteriores
-        Object.values(carpetasData).forEach(nv2 =>
-            Object.values(nv2).forEach(nv3 =>
-                Object.values(nv3).forEach(d => map.removeLayer(d.layerGroup))
-            )
-        );
-        carpetasData = {};
-
+        Object.values(folderMap).forEach(data => map.removeLayer(data.lg));
+        folderMap = {};
+        arbolCarpetas = [];
+        const todosLosBounds = [];
+    
         const zip = await JSZip.loadAsync(buffer);
         const kmlFile = Object.values(zip.files).find(f => f.name.endsWith('.kml'));
         if (!kmlFile) { alert('No se encontró KML'); return; }
         const kmlDoc = new DOMParser().parseFromString(await kmlFile.async('string'), 'text/xml');
-
-        // Estilos
+    
         const styles = {};
         kmlDoc.querySelectorAll('Style').forEach(s => {
             const id = s.getAttribute('id'); if (!id) return;
@@ -566,7 +484,7 @@
             const url = pair?.querySelector('styleUrl')?.textContent?.trim();
             if (id && url) styles['#' + id] = styles[url] || {};
         });
-
+    
         function hex(c) { return (!c || c.length < 8) ? null : '#' + c.slice(6,8) + c.slice(4,6) + c.slice(2,4); }
         function coords(el) {
             if (!el?.textContent) return [];
@@ -575,36 +493,27 @@
                 return (p.length < 2 || isNaN(p[0]) || isNaN(p[1])) ? null : [p[1], p[0]];
             }).filter(Boolean);
         }
-
-        function getLG(r, s, ss) {
-            if (!carpetasData[r]) carpetasData[r] = {};
-            if (!carpetasData[r][s]) carpetasData[r][s] = {};
-            if (!carpetasData[r][s][ss]) carpetasData[r][s][ss] = { layerGroup: L.layerGroup().addTo(map), count: 0 };
-            return carpetasData[r][s][ss];
-        }
-
-        function crearLayers(pm, style, r, s, ss) {
+    
+        function crearLayersDirectos(pm, style) {
             const name = pm.querySelector(':scope > name')?.textContent?.trim() || '';
             const desc = pm.querySelector(':scope > description')?.textContent?.trim() || '';
             const popup = '<b>' + name + '</b>' + (desc ? '<br>' + desc : '');
             const layers = [];
-
-            function onClick(l) { l.on('click', () => resaltarCarpeta(r, s, ss)); }
-
+    
             pm.querySelectorAll('Polygon').forEach(poly => {
                 const c = coords(poly.querySelector('outerBoundaryIs coordinates'));
                 if (!c.length) return;
                 const color = hex(style.polyColor) || hex(style.lineColor) || '#3388ff';
                 const l = L.polygon(c, { color, fillColor: color, fillOpacity: 0.4 });
                 l.bindPopup(popup); if (name) l.bindTooltip(name, { sticky: true });
-                onClick(l); layers.push(l);
+                layers.push(l);
             });
             pm.querySelectorAll('LineString').forEach(line => {
                 const c = coords(line.querySelector('coordinates'));
                 if (!c.length) return;
                 const l = L.polyline(c, { color: hex(style.lineColor) || '#e74c3c', weight: 3 });
                 l.bindPopup(popup); if (name) l.bindTooltip(name, { sticky: true });
-                onClick(l); layers.push(l);
+                layers.push(l);
             });
             pm.querySelectorAll('Point').forEach(point => {
                 const c = coords(point.querySelector('coordinates'));
@@ -613,52 +522,53 @@
                     ? L.marker(c[0], { icon: L.icon({ iconUrl: style.iconHref, iconSize: [32,32], iconAnchor: [16,32], popupAnchor: [0,-32] }) })
                     : L.marker(c[0]);
                 m.bindPopup(popup); if (name) m.bindTooltip(name, { permanent: false, direction: 'top' });
-                onClick(m); layers.push(m);
+                layers.push(m);
             });
             return layers;
         }
-
-        const todosLosBounds = [];
-
-        kmlDoc.querySelectorAll('Document > Folder, kml > Folder').forEach(f1 => {
-            const r = f1.querySelector(':scope > name')?.textContent?.trim() || 'Raíz';
-
-            [...f1.querySelectorAll(':scope > Folder')].forEach(f2 => {
-                const s = f2.querySelector(':scope > name')?.textContent?.trim() || 'Sub';
-
-                [...f2.querySelectorAll(':scope > Folder')].forEach(f3 => {
-                    const ss = f3.querySelector(':scope > name')?.textContent?.trim() || 'Sub-sub';
-                    const lg = getLG(r, s, ss);
-                    f3.querySelectorAll(':scope > Placemark').forEach(pm => {
-                        const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
-                        crearLayers(pm, style, r, s, ss).forEach(l => {
-                            lg.layerGroup.addLayer(l); lg.count++;
-                            if (l.getLatLng) todosLosBounds.push(l.getLatLng());
-                            else if (l.getBounds) { const b = l.getBounds(); todosLosBounds.push(b.getNorthEast(), b.getSouthWest()); }
-                        });
-                    });
-                });
-
-                // Placemarks directos en nivel 2
-                [...f2.querySelectorAll(':scope > Placemark')].forEach(pm => {
-                    const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
-                    const lg = getLG(r, s, '—');
-                    crearLayers(pm, style, r, s, '—').forEach(l => { lg.layerGroup.addLayer(l); lg.count++; });
-                });
-            });
-
-            // Placemarks directos en nivel 1
-            [...f1.querySelectorAll(':scope > Placemark')].forEach(pm => {
+    
+        function procesarCarpeta(nodoXML) {
+            const uid = 'uid_' + Math.random().toString(36).substring(2);
+            const nombre = nodoXML.querySelector(':scope > name')?.textContent?.trim() || 'Sin nombre';
+            const lgDirecto = L.layerGroup().addTo(map); 
+            let cantidadTotal = 0;
+            const hijos = [];
+    
+            // Leer puntos/polígonos que viven directamente en esta carpeta
+            nodoXML.querySelectorAll(':scope > Placemark').forEach(pm => {
                 const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
-                const lg = getLG(r, '—', '—');
-                crearLayers(pm, style, r, '—', '—').forEach(l => { lg.layerGroup.addLayer(l); lg.count++; });
+                crearLayersDirectos(pm, style).forEach(l => {
+                    lgDirecto.addLayer(l);
+                    cantidadTotal++;
+                    if (l.getLatLng) todosLosBounds.push(l.getLatLng());
+                    else if (l.getBounds) { const b = l.getBounds(); todosLosBounds.push(b.getNorthEast(), b.getSouthWest()); }
+                });
             });
+    
+            folderMap[uid] = { lg: lgDirecto }; // Lo registramos en memoria
+    
+            // Leer subcarpetas (recursividad)
+            nodoXML.querySelectorAll(':scope > Folder').forEach(subNodo => {
+                const datosHijo = procesarCarpeta(subNodo);
+                if (datosHijo.cantidadTotal > 0) { 
+                    hijos.push(datosHijo);
+                    cantidadTotal += datosHijo.cantidadTotal;
+                }
+            });
+    
+            return { uid, nombre, cantidadTotal, hijos };
+        }
+    
+        // Iniciar parseo
+        const raices = kmlDoc.querySelectorAll('Document > Folder, kml > Folder');
+        raices.forEach(r => {
+            const data = procesarCarpeta(r);
+            if(data.cantidadTotal > 0) arbolCarpetas.push(data);
         });
-
+    
         if (todosLosBounds.length) map.fitBounds(L.latLngBounds(todosLosBounds));
         renderizarPanelCapas();
     }
-
     /* ── Overrides app.js ── */
     function renderizarTabla(datos) {
         const tbody = document.querySelector('#resultTable tbody');
