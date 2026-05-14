@@ -218,12 +218,7 @@
 </div>
 
 <!-- Vista Mapa -->
-    <div id="view-mapa">
-        <div id="layer-control-panel" style="position: absolute; top: 110px; left: 10px; z-index: 1000; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); max-height: 70vh; overflow-y: auto; width: 220px; display: none;">
-        <div style="font-size: 12px; font-weight: 700; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px;">CARPETAS KMZ</div>
-        <div id="folder-tree"></div>
-    </div>
-        <button onclick="toggleLayerPanel()" style="background: #334155; color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;">📂 Capas</button>
+<div id="view-mapa">
     <div id="mapa-toolbar">
         <select id="kmzSelect">
             <option value="">— KMZ —</option>
@@ -241,14 +236,16 @@
         <div id="map"></div>
         <div id="panel-capas">
             <div id="capas-header">
-                <span>🗂 Capas del KMZ</span>
+                <span>🗂 Estructura KMZ</span>
                 <button id="btn-cerrar-capas" onclick="togglePanelCapas()">✕</button>
             </div>
             <div id="capas-acciones">
                 <button class="btn-capas-accion" onclick="toggleTodasCapas(true)">✅ Todas</button>
                 <button class="btn-capas-accion" onclick="toggleTodasCapas(false)">⬜ Ninguna</button>
             </div>
-            <div id="capas-lista"></div>
+            <div id="capas-lista">
+                <!-- Aquí se generará el árbol de carpetas -->
+            </div>
         </div>
     </div>
 </div>
@@ -257,37 +254,148 @@
 <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="app.js?v=100"></script>
 <script>
-    var mapaIniciado = false;
-    var map, pinActual;
-    var carpetasData = {}; // { nombreCarpeta: { layerGroup, subcarpetas: { nombre: layerGroup } } }
-    const BASE_URL = 'https://api.allorigins.win/raw?url=https://raw.githubusercontent.com/Totalitoplay/kmz-finder/main/';
+ var mapaIniciado = false;
+var map, pinActual;
+var kmzMainLayer = L.layerGroup(); // Contenedor principal
+var carpetasData = {}; // Diccionario de LayerGroups
 
-    /* ── Tabs ── */
-    function switchTab(tab) {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('#view-lista, #view-mapa').forEach(v => v.classList.remove('active'));
-        document.querySelector('.tab-btn[onclick="switchTab(\'' + tab + '\')"]').classList.add('active');
-        document.getElementById('view-' + tab).classList.add('active');
-        if (tab === 'mapa') {
-            if (!mapaIniciado) { iniciarMapa(); mapaIniciado = true; }
-            else setTimeout(() => map.invalidateSize(), 100);
-        }
-    }
+function togglePanelCapas() {
+    document.getElementById('panel-capas').classList.toggle('abierto');
+}
 
-    /* ── Panel capas ── */
-    function togglePanelCapas() {
-        document.getElementById('panel-capas').classList.toggle('abierto');
-    }
+function iniciarMapa() {
+    if (map) return;
+    map = L.map('map').setView([25.68, -100.31], 8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM' }).addTo(map);
+    kmzMainLayer.addTo(map);
 
-    function toggleTodasCapas(visible) {
-        Object.values(carpetasData).forEach(carpeta => {
-            Object.values(carpeta.subcarpetas).forEach(sub => {
-                if (visible) map.addLayer(sub.layerGroup);
-                else map.removeLayer(sub.layerGroup);
+    document.getElementById('kmzSelect').addEventListener('change', e => { if (e.target.value) cargarKMZDesdeURL(e.target.value); });
+    document.getElementById('fileInput').addEventListener('change', async e => {
+        const file = e.target.files[0]; if (!file) return;
+        setPinInfo('Procesando...');
+        await parsearKMZ(await file.arrayBuffer());
+        setPinInfo(file.name + ' ✓');
+    });
+    document.getElementById('btn-ir').addEventListener('click', irManual);
+}
+
+async function parsearKMZ(buffer) {
+    const zip = await JSZip.loadAsync(buffer);
+    const kmlFile = Object.values(zip.files).find(f => f.name.endsWith('.kml'));
+    if (!kmlFile) return;
+    const kmlText = await kmlFile.async('string');
+    const kmlDoc = new DOMParser().parseFromString(kmlText, 'text/xml');
+
+    // 1. Extraer Estilos
+    const styles = {};
+    kmlDoc.querySelectorAll('Style').forEach(s => {
+        const id = s.getAttribute('id');
+        if (!id) return;
+        styles['#' + id] = {
+            lineColor: s.querySelector('LineStyle color')?.textContent,
+            polyColor: s.querySelector('PolyStyle color')?.textContent
+        };
+    });
+
+    // 2. Limpiar datos previos
+    kmzMainLayer.clearLayers();
+    carpetasData = {};
+    const listaUI = document.getElementById('capas-lista');
+    listaUI.innerHTML = '';
+
+    // 3. Función Recursiva de Parseo
+    function procesarNodo(nodo, containerUI) {
+        const folders = nodo.querySelectorAll(':scope > Folder');
+        
+        folders.forEach(folder => {
+            const name = folder.querySelector(':scope > name')?.textContent || "Sin nombre";
+            const id = 'f_' + Math.random().toString(36).substr(2, 9);
+            const group = L.layerGroup().addTo(kmzMainLayer);
+            carpetasData[id] = group;
+
+            // Crear UI para la carpeta
+            const item = document.createElement('div');
+            item.className = 'subcarpeta-item';
+            item.style.paddingLeft = "15px";
+            item.innerHTML = `
+                <input type="checkbox" checked id="cb_${id}">
+                <span class="subcarpeta-nombre">${name}</span>
+            `;
+            
+            item.querySelector('input').onchange = (e) => {
+                if (e.target.checked) group.addTo(kmzMainLayer);
+                else group.removeFrom(kmzMainLayer);
+            };
+
+            containerUI.appendChild(item);
+
+            // Procesar Placemarks hijos
+            folder.querySelectorAll(':scope > Placemark').forEach(pm => {
+                const layer = crearCapa(pm, styles);
+                if (layer) layer.addTo(group);
             });
+
+            // Procesar Subcarpetas (Recursión)
+            const subContainer = document.createElement('div');
+            subContainer.style.marginLeft = "10px";
+            subContainer.style.borderLeft = "1px dashed #ccc";
+            containerUI.appendChild(subContainer);
+            procesarNodo(folder, subContainer);
         });
-        document.querySelectorAll('#capas-lista input[type="checkbox"]').forEach(cb => cb.checked = visible);
     }
+
+    procesarNodo(kmlDoc.querySelector('Document') || kmlDoc, listaUI);
+    
+    if (kmzMainLayer.getLayers().length > 0) {
+        const bounds = L.featureGroup(Object.values(carpetasData)).getBounds();
+        if (bounds.isValid()) map.fitBounds(bounds);
+    }
+}
+
+function crearCapa(pm, styles) {
+    const name = pm.querySelector('name')?.textContent || '';
+    const styleUrl = pm.querySelector('styleUrl')?.textContent;
+    const style = styles[styleUrl] || {};
+    
+    // Función para convertir color KML (AABBGGRR) a Hex (#RRGGBB)
+    const kmlToHex = (c) => {
+        if (!c || c.length < 8) return '#2563eb';
+        return '#' + c.substr(6, 2) + c.substr(4, 2) + c.substr(2, 2);
+    };
+
+    const coordStr = pm.querySelector('coordinates')?.textContent.trim();
+    if (!coordStr) return null;
+    const pts = coordStr.split(/\s+/).map(p => p.split(',').map(Number));
+
+    // Es un Punto
+    if (pm.querySelector('Point')) {
+        return L.circleMarker([pts[0][1], pts[0][0]], { radius: 5, color: '#ea580c' }).bindPopup(name);
+    }
+    // Es una Línea
+    if (pm.querySelector('LineString')) {
+        return L.polyline(pts.map(p => [p[1], p[0]]), { color: kmlToHex(style.lineColor), weight: 3 }).bindPopup(name);
+    }
+    // Es un Polígono
+    if (pm.querySelector('Polygon')) {
+        return L.polygon(pts.map(p => [p[1], p[0]]), { 
+            color: kmlToHex(style.lineColor), 
+            fillColor: kmlToHex(style.polyColor),
+            fillOpacity: 0.4 
+        }).bindPopup(name);
+    }
+    return null;
+}
+
+function toggleTodasCapas(visible) {
+    Object.keys(carpetasData).forEach(id => {
+        const cb = document.getElementById('cb_' + id);
+        if (cb) {
+            cb.checked = visible;
+            if (visible) carpetasData[id].addTo(kmzMainLayer);
+            else carpetasData[id].removeFrom(kmzMainLayer);
+        }
+    });
+}
 
     /* ── Mapa ── */
     function iniciarMapa() {
