@@ -461,31 +461,37 @@
                 l.bindPopup(popup); if (name) l.bindTooltip(name, { sticky: true });
                 layers.push(l);
             });
-                pm.querySelectorAll('Point').forEach(point => {
+            pm.querySelectorAll('Point').forEach(point => {
                 const c = coords(point.querySelector('coordinates'));
                 if (!c.length) return;
                 
-                // Prioridad: 1. Color del Icono, 2. Color de la Línea, 3. Naranja por defecto
-                let color = hex(style.iconColor) || hex(style.lineColor);
-                
-                // 🛡️ Respaldo por si el KMZ usa colores en el nombre del archivo en lugar de códigos
-                if (!color && style.iconHref) {
-                    const href = style.iconHref.toLowerCase();
-                    if (href.includes('red')) color = '#e31a1c';
-                    else if (href.includes('green')) color = '#33a02c';
-                    else if (href.includes('blue')) color = '#1f78b4';
-                    else if (href.includes('yellow')) color = '#ffeb3b';
-                }
-                color = color || '#ea580c'; // Color final de seguridad
+                let m;
+                // Detectamos el color exacto que pide el KMZ para este punto
+                let hexColor = style.iconColor ? hex(style.iconColor) : null;
+                let colorBase = hexColor || hex(style.lineColor) || '#ea580c'; // Naranja de seguridad
 
-                // Dibujamos un Círculo Vectorial (Soporta colores KML y no da lag)
-                const m = L.circleMarker(c[0], {
-                    radius: 5,             // Tamaño del círculo
-                    fillColor: color,      // Color interno extraído del KMZ
-                    fillOpacity: 1,        // Opacidad total
-                    color: '#ffffff',      // Borde blanco para resaltar
-                    weight: 1.5            // Grosor del borde
-                });
+                if (style.iconHref) {
+                    // Si trae una forma (imagen) y pide un color que NO sea blanco (#ffffff)
+                    if (hexColor && hexColor !== '#ffffff') {
+                        // 🌟 TRUCO PRO: Usamos la imagen como "máscara" y la rellenamos del color
+                        const iconHtml = `<div style="
+                            width: 22px; height: 22px; 
+                            background-color: ${hexColor}; 
+                            -webkit-mask: url('${style.iconHref}') no-repeat center / contain; 
+                            mask: url('${style.iconHref}') no-repeat center / contain;">
+                        </div>`;
+                        m = L.marker(c[0], { icon: L.divIcon({ html: iconHtml, className: '', iconSize: [22, 22], iconAnchor: [11, 11] }) });
+                    } else {
+                        // Si la imagen no lleva color (o es blanca), cargamos el ícono a todo color original
+                        const iconHtml = `<img src="${style.iconHref}" style="width: 24px; height: 24px; object-fit: contain;">`;
+                        m = L.marker(c[0], { icon: L.divIcon({ html: iconHtml, className: '', iconSize: [24, 24], iconAnchor: [12, 12] }) });
+                    }
+                } else {
+                    // Si el elemento KML de verdad no tiene forma, le ponemos nuestro círculo rápido
+                    m = L.circleMarker(c[0], {
+                        radius: 5, fillColor: colorBase, fillOpacity: 1, color: '#ffffff', weight: 1.5
+                    });
+                }
                 
                 m.bindPopup(popup); 
                 if (name) m.bindTooltip(name, { permanent: false, direction: 'top' });
