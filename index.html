@@ -264,7 +264,18 @@
         <div id="summaryStats" class="card">
             <div class="card-title">📊 Resumen de impacto por QR</div>
             <div id="statsContent"></div>
-        </div>
+        </div
+            <table id="resultTable">
+            <thead>
+                <tr>
+                    <th onclick="ordenarTabla(0)">Estado ↕</th>
+                    <th onclick="ordenarTabla(1)">Cuenta ↕</th>
+                    <th onclick="ordenarTabla(2)">QR ↕</th>
+                    <th>Coordenadas</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
     </div>
 </div>
 
