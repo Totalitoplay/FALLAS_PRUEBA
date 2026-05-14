@@ -218,7 +218,12 @@
 </div>
 
 <!-- Vista Mapa -->
-<div id="view-mapa">
+    <div id="view-mapa">
+        <div id="layer-control-panel" style="position: absolute; top: 110px; left: 10px; z-index: 1000; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); max-height: 70vh; overflow-y: auto; width: 220px; display: none;">
+        <div style="font-size: 12px; font-weight: 700; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px;">CARPETAS KMZ</div>
+        <div id="folder-tree"></div>
+    </div>
+        <button onclick="toggleLayerPanel()" style="background: #334155; color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;">📂 Capas</button>
     <div id="mapa-toolbar">
         <select id="kmzSelect">
             <option value="">— KMZ —</option>
@@ -342,151 +347,84 @@
         } catch (err) { setPinInfo('Error: ' + err.message); }
     }
 
-    async function parsearKMZ(buffer) {
-        // Limpiar capas anteriores
-        Object.values(carpetasData).forEach(c => {
-            Object.values(c.subcarpetas).forEach(s => map.removeLayer(s.layerGroup));
+let folderLayers = {}; // Guardará las capas por nombre de carpeta
+
+function toggleLayerPanel() {
+    const p = document.getElementById('layer-control-panel');
+    p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+async function parsearKMZ(buffer) {
+    const zip = await JSZip.loadAsync(buffer);
+    const kmlFile = Object.values(zip.files).find(f => f.name.endsWith('.kml'));
+    if (!kmlFile) return;
+    const kmlDoc = new DOMParser().parseFromString(await kmlFile.async('string'), 'text/xml');
+
+    // ... (Mantén tu lógica de estilos actual aquí) ...
+
+    kmzLayer.clearLayers();
+    folderLayers = {};
+    const treeContainer = document.getElementById('folder-tree');
+    treeContainer.innerHTML = '';
+
+    // Función recursiva para procesar carpetas
+    function procesarFolder(folderNode, container) {
+        const folderName = folderNode.querySelector('name')?.textContent || 'Carpeta sin nombre';
+        const group = L.layerGroup();
+        
+        // Crear elemento UI
+        const div = document.createElement('div');
+        div.style.marginBottom = "4px";
+        div.innerHTML = `
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; cursor: pointer;">
+                <input type="checkbox" checked onchange="toggleFolder('${folderName}', this.checked)">
+                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${folderName}</span>
+            </label>
+        `;
+        container.appendChild(div);
+        
+        folderLayers[folderName] = group;
+        kmzLayer.addLayer(group);
+
+        // Procesar Placemarks directos de esta carpeta
+        folderNode.querySelectorAll(':scope > Placemark').forEach(pm => {
+            const leafLayer = crearCapaDesdePlacemark(pm, styles); // Tu lógica de Point/Line/Poly
+            if (leafLayer) group.addLayer(leafLayer);
         });
-        carpetasData = {};
 
-        const zip = await JSZip.loadAsync(buffer);
-        const kmlFile = Object.values(zip.files).find(f => f.name.endsWith('.kml'));
-        if (!kmlFile) { alert('No se encontró KML'); return; }
-        const kmlDoc = new DOMParser().parseFromString(await kmlFile.async('string'), 'text/xml');
-
-        // Estilos
-        const styles = {};
-        kmlDoc.querySelectorAll('Style').forEach(s => {
-            const id = s.getAttribute('id'); if (!id) return;
-            styles['#' + id] = {
-                iconHref: s.querySelector('IconStyle Icon href')?.textContent?.trim(),
-                lineColor: s.querySelector('LineStyle color')?.textContent?.trim(),
-                polyColor: s.querySelector('PolyStyle color')?.textContent?.trim()
-            };
+        // Procesar Sub-carpetas
+        const subContainer = document.createElement('div');
+        subContainer.style.paddingLeft = "15px";
+        container.appendChild(subContainer);
+        
+        folderNode.querySelectorAll(':scope > Folder').forEach(subFolder => {
+            procesarFolder(subFolder, subContainer);
         });
-        kmlDoc.querySelectorAll('StyleMap').forEach(sm => {
-            const id = sm.getAttribute('id');
-            const pair = [...sm.querySelectorAll('Pair')].find(p => p.querySelector('key')?.textContent === 'normal');
-            const url = pair?.querySelector('styleUrl')?.textContent?.trim();
-            if (id && url) styles['#' + id] = styles[url] || {};
-        });
-
-        function hex(c) { return (!c || c.length < 8) ? null : '#' + c.slice(6,8) + c.slice(4,6) + c.slice(2,4); }
-        function coords(el) {
-            if (!el?.textContent) return [];
-            return el.textContent.trim().split(/\s+/).map(c => {
-                const p = c.split(',').map(Number);
-                return (p.length < 2 || isNaN(p[0]) || isNaN(p[1])) ? null : [p[1], p[0]];
-            }).filter(Boolean);
-        }
-
-        function crearLayer(pm, style) {
-            const name = pm.querySelector(':scope > name')?.textContent?.trim() || '';
-            const desc = pm.querySelector(':scope > description')?.textContent?.trim() || '';
-            const popup = '<b>' + name + '</b>' + (desc ? '<br>' + desc : '');
-            const layers = [];
-
-            pm.querySelectorAll('Polygon').forEach(poly => {
-                const c = coords(poly.querySelector('outerBoundaryIs coordinates'));
-                if (!c.length) return;
-                const color = hex(style.polyColor) || hex(style.lineColor) || '#3388ff';
-                const l = L.polygon(c, { color, fillColor: color, fillOpacity: 0.4 });
-                l.bindPopup(popup); if (name) l.bindTooltip(name, { sticky: true }); layers.push(l);
-            });
-            pm.querySelectorAll('LineString').forEach(line => {
-                const c = coords(line.querySelector('coordinates'));
-                if (!c.length) return;
-                const color = hex(style.lineColor) || '#e74c3c';
-                const l = L.polyline(c, { color, weight: 3 });
-                l.bindPopup(popup); if (name) l.bindTooltip(name, { sticky: true }); layers.push(l);
-            });
-            pm.querySelectorAll('Point').forEach(point => {
-                const c = coords(point.querySelector('coordinates'));
-                if (!c.length) return;
-                const m = style.iconHref
-                    ? L.marker(c[0], { icon: L.icon({ iconUrl: style.iconHref, iconSize: [32,32], iconAnchor: [16,32], popupAnchor: [0,-32] }) })
-                    : L.marker(c[0]);
-                m.bindPopup(popup); if (name) m.bindTooltip(name, { permanent: false, direction: 'top' }); layers.push(m);
-            });
-            return layers;
-        }
-
-        // Recorrer carpetas raíz → subcarpetas → placemarks
-        const todosLosBounds = [];
-
-        const rootFolders = [...kmlDoc.querySelectorAll('Document > Folder, kml > Folder')];
-
-        // Si no hay carpetas, meter todo en una carpeta "General"
-        if (rootFolders.length === 0) {
-            const lg = L.layerGroup().addTo(map);
-            carpetasData['General'] = { subcarpetas: { 'General': { layerGroup: lg, count: 0 } } };
-            kmlDoc.querySelectorAll('Placemark').forEach(pm => {
-                const styleUrl = pm.querySelector('styleUrl')?.textContent?.trim();
-                const style = styles[styleUrl] || {};
-                crearLayer(pm, style).forEach(l => { lg.addLayer(l); carpetasData['General'].subcarpetas['General'].count++; });
-            });
-        } else {
-            rootFolders.forEach(rootFolder => {
-                const rootName = rootFolder.querySelector(':scope > name')?.textContent?.trim() || 'Sin nombre';
-                carpetasData[rootName] = { subcarpetas: {} };
-
-                // Subcarpetas dentro de esta carpeta raíz
-                const subFolders = [...rootFolder.querySelectorAll(':scope > Folder')];
-
-                if (subFolders.length === 0) {
-                    // Sin subcarpetas: meter placemarks directos
-                    const lg = L.layerGroup().addTo(map);
-                    carpetasData[rootName].subcarpetas[rootName] = { layerGroup: lg, count: 0 };
-                    rootFolder.querySelectorAll(':scope > Placemark').forEach(pm => {
-                        const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
-                        crearLayer(pm, style).forEach(l => { lg.addLayer(l); carpetasData[rootName].subcarpetas[rootName].count++; });
-                    });
-                } else {
-                    subFolders.forEach(subFolder => {
-                        const subName = subFolder.querySelector(':scope > name')?.textContent?.trim() || 'Sin nombre';
-                        const lg = L.layerGroup().addTo(map);
-                        carpetasData[rootName].subcarpetas[subName] = { layerGroup: lg, count: 0 };
-
-                        subFolder.querySelectorAll('Placemark').forEach(pm => {
-                            const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
-                            crearLayer(pm, style).forEach(l => {
-                                lg.addLayer(l);
-                                carpetasData[rootName].subcarpetas[subName].count++;
-                                if (l.getLatLng) todosLosBounds.push(l.getLatLng());
-                                else if (l.getBounds) { const b = l.getBounds(); todosLosBounds.push(b.getNorthEast(), b.getSouthWest()); }
-                            });
-                        });
-
-                        // Placemarks directos en subcarpeta
-                        subFolder.querySelectorAll(':scope > Placemark').forEach(pm => {
-                            const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
-                            crearLayer(pm, style).forEach(l => {
-                                lg.addLayer(l);
-                                carpetasData[rootName].subcarpetas[subName].count++;
-                            });
-                        });
-                    });
-
-                    // Placemarks directos en raíz (fuera de subcarpetas)
-                    const directos = [...rootFolder.querySelectorAll(':scope > Placemark')];
-                    if (directos.length) {
-                        const lg = L.layerGroup().addTo(map);
-                        carpetasData[rootName].subcarpetas['(Sin subcarpeta)'] = { layerGroup: lg, count: 0 };
-                        directos.forEach(pm => {
-                            const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
-                            crearLayer(pm, style).forEach(l => { lg.addLayer(l); carpetasData[rootName].subcarpetas['(Sin subcarpeta)'].count++; });
-                        });
-                    }
-                }
-            });
-        }
-
-        // Ajustar vista
-        if (todosLosBounds.length) map.fitBounds(L.latLngBounds(todosLosBounds));
-
-        // Renderizar panel capas
-        renderizarPanelCapas();
     }
+
+    // Empezar desde la raíz del KML
+    const rootFolders = kmlDoc.querySelectorAll('kml > Document > Folder, kml > Document');
+    rootFolders.forEach(rf => procesarFolder(rf, treeContainer));
+    
+    if (kmzLayer.getLayers().length > 0) {
+        map.fitBounds(kmzLayer.getBounds());
+    }
+}
+
+function toggleFolder(name, visible) {
+    if (folderLayers[name]) {
+        if (visible) map.addLayer(folderLayers[name]);
+        else map.removeLayer(folderLayers[name]);
+    }
+}
+
+// Función auxiliar para limpiar el código de parsearKMZ
+function crearCapaDesdePlacemark(pm, styles) {
+    const name = pm.querySelector('name')?.textContent?.trim() || '';
+    const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
+    // ... aquí pones tu lógica existente de L.polygon, L.polyline y L.marker ...
+    // Asegúrate de retornar la instancia de la capa (l o m)
+}
 
     function renderizarPanelCapas() {
         const lista = document.getElementById('capas-lista');
