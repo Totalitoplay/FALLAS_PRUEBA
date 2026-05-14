@@ -181,6 +181,37 @@ textarea:focus { outline: 2px solid #93c5fd; border-color: var(--primary); }
 #capas-lista { flex: 1; overflow-y: auto; padding-bottom: 20px; }
 
 /* ── MEDIA QUERIES (MAGIA MOBILE) ── */
+/* ── Modal (Action Sheet) ── */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(2px);
+    display: none; justify-content: center; align-items: flex-end; /* En PC se puede centrar, en móvil va abajo */
+    z-index: 10000; opacity: 0; transition: opacity 0.25s ease;
+}
+.modal-overlay.activo { display: flex; opacity: 1; }
+
+.modal-content {
+    background: white; width: 100%; max-width: 400px;
+    border-radius: 20px 20px 0 0; /* Bordes redondeados arriba */
+    padding: 15px 24px 30px 24px; text-align: center;
+    transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+}
+.modal-overlay.activo .modal-content { transform: translateY(0); }
+
+.modal-drag-handle {
+    width: 40px; height: 5px; background: #cbd5e1;
+    border-radius: 10px; margin: 0 auto 15px auto;
+}
+.modal-buttons { display: flex; flex-direction: column; gap: 12px; margin-bottom: 8px; }
+
+/* Si es PC, el modal flota en el centro */
+@media (min-width: 601px) {
+    .modal-overlay { align-items: center; padding: 20px; }
+    .modal-content { border-radius: 16px; transform: scale(0.95); padding: 24px; }
+    .modal-overlay.activo .modal-content { transform: scale(1); }
+    .modal-drag-handle { display: none; }
+}
 @media (max-width: 600px) {
     #topbar h1 { font-size: 14px; }
     #inventarioStatus { display: none; }
