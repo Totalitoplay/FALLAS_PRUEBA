@@ -302,6 +302,12 @@
                 <span>🗂 Capas del KMZ</span>
                 <button id="btn-cerrar-capas" onclick="togglePanelCapas()">✕</button>
             </div>
+        
+            <div style="padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                <input type="text" id="buscador-capas" placeholder="Buscar código (ej. ALD-1D)..." 
+                       onkeyup="filtrarCapas(this.value)" 
+                       style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; outline: none;">
+            </div>
             <div id="capas-acciones">
                 <button class="btn-capas-accion" onclick="toggleTodasCapas(true)">✅ Todas</button>
                 <button class="btn-capas-accion" onclick="toggleTodasCapas(false)">⬜ Ninguna</button>
@@ -689,6 +695,53 @@
             </div>`;
         }).join('');
     }
+    function filtrarCapas(texto) {
+    const term = texto.toLowerCase().trim();
+
+    // Filtramos los elementos de nivel 3 (los Placemarks/Marcadores finales)
+    document.querySelectorAll('.n3-item').forEach(item => {
+        const nombre = item.querySelector('.n3-nombre').textContent.toLowerCase();
+        
+        if (nombre.includes(term)) {
+            item.style.display = 'flex'; // Lo mostramos
+        } else {
+            item.style.display = 'none'; // Lo ocultamos
+        }
+    });
+
+    // Lógica para expandir automáticamente las carpetas si estamos buscando algo
+    if (term !== '') {
+        document.querySelectorAll('.subcarpetas').forEach(sub => {
+            // Revisamos si esta carpeta tiene algún hijo visible
+            const tieneVisibles = Array.from(sub.querySelectorAll('.n3-item')).some(i => i.style.display !== 'none');
+            
+            if (tieneVisibles) {
+                sub.classList.add('visible');
+                // Girar la flechita
+                const toggleBtn = document.getElementById('toggle_' + sub.id);
+                if (toggleBtn) toggleBtn.classList.add('abierto');
+                
+                // Mostrar también el encabezado de Nivel 2 y Nivel 1
+                const headerAnterior = sub.previousElementSibling;
+                if(headerAnterior) headerAnterior.style.display = 'flex';
+            } else {
+                // Si la carpeta no tiene coincidencias, ocultamos su encabezado para limpiar la vista
+                const headerAnterior = sub.previousElementSibling;
+                if(headerAnterior && (headerAnterior.classList.contains('n2-header') || headerAnterior.classList.contains('n1-header'))) {
+                    headerAnterior.style.display = 'none';
+                }
+            }
+        });
+    } else {
+        // Si el buscador está vacío, restauramos la vista original
+        document.querySelectorAll('.n1-header, .n2-header').forEach(h => h.style.display = 'flex');
+        document.querySelectorAll('.subcarpetas').forEach(sub => {
+            sub.classList.remove('visible');
+            const toggleBtn = document.getElementById('toggle_' + sub.id);
+            if (toggleBtn) toggleBtn.classList.remove('abierto');
+        });
+    }
+}
 </script>
 </body>
 </html>
