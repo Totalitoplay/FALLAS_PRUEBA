@@ -432,7 +432,51 @@
             });
         }
     }
-    
+    function resaltarCarpeta(uid) {
+        // 1. Abrimos el panel lateral si estaba cerrado
+        const panel = document.getElementById('panel-capas');
+        if (panel && !panel.classList.contains('abierto')) {
+            panel.classList.add('abierto');
+            if (mapaIniciado && map) setTimeout(() => map.invalidateSize(), 300);
+        }
+
+        // 2. Limpiamos cualquier resaltado anterior
+        document.querySelectorAll('.header-carpeta').forEach(el => {
+            el.style.backgroundColor = 'transparent'; 
+        });
+
+        // 3. Buscamos el checkbox que corresponde a esa carpeta
+        const cb = document.querySelector(`.cb-capa[data-uid="${uid}"]`);
+        if (!cb) return;
+
+        const header = cb.closest('.header-carpeta');
+        if (header) {
+            // Pintamos de azul clarito la carpeta encontrada
+            header.style.backgroundColor = '#dbeafe'; 
+            
+            // 4. Bucle para expandir todos los padres de esta carpeta hacia arriba
+            let nodoActual = header;
+            while (nodoActual) {
+                const contenedorSub = nodoActual.closest('.subcarpetas');
+                if (!contenedorSub) break; // Si ya no hay más padres, salimos
+                
+                contenedorSub.style.display = 'block'; // Desplegamos el contenedor
+                
+                // Giramos la flechita del padre
+                const headerPadre = contenedorSub.previousElementSibling;
+                if (headerPadre && headerPadre.classList.contains('header-carpeta')) {
+                    const toggle = headerPadre.querySelector('.carpeta-toggle');
+                    if (toggle) toggle.classList.add('abierto');
+                }
+                nodoActual = headerPadre; // Subimos un nivel en el árbol
+            }
+
+            // 5. Hacemos auto-scroll hacia la carpeta (le damos 300ms para que se acabe de abrir el panel)
+            setTimeout(() => {
+                header.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300); 
+        }
+    }
     // 3. Renderizado recursivo de carpetas
     function renderizarPanelCapas() {
         const lista = document.getElementById('capas-lista');
@@ -548,6 +592,11 @@
             nodoXML.querySelectorAll(':scope > Placemark').forEach(pm => {
                 const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
                 crearLayersDirectos(pm, style).forEach(l => {
+                    
+                    // --- ESTA ES LA LÍNEA NUEVA QUE DEBES AGREGAR ---
+                    l.on('click', () => resaltarCarpeta(uid)); 
+                    // ------------------------------------------------
+                    
                     lgDirecto.addLayer(l);
                     cantidadTotal++;
                     if (l.getLatLng) todosLosBounds.push(l.getLatLng());
