@@ -528,10 +528,30 @@
             });
 
             // Hacer el zoom solo con los puntos limpios
-            if (puntosValidos > 0) {
-                // maxZoom: 17 evita que la cámara se estrelle contra el suelo si el KMZ tiene muy poquitos puntos
-                map.fitBounds(limitesValidos, { padding: [30, 30], maxZoom: 17 });
-            }
+            if (todosLosBounds.length > 0) {
+                        // Si ya tienes un PIN activo (buscaste un TP), NO muevas la cámara
+                        if (pinActual && map.hasLayer(pinActual)) {
+                            console.log("Manteniendo enfoque en el TP seleccionado...");
+                        } else {
+                            // Si no hay pin, buscamos el área de trabajo en Juárez
+                            let limitesLimpios = L.latLngBounds();
+                            let centroJuarez = L.latLng(31.74, -106.48); 
+                            let puntosEncontrados = 0;
+            
+                            todosLosBounds.forEach(p => {
+                                // Solo incluimos puntos que estén a menos de 100km de Juárez
+                                // Esto ignora automáticamente basura en 0,0 o coordenadas corruptas
+                                if (p && centroJuarez.distanceTo(p) < 100000) { 
+                                    limitesLimpios.extend(p);
+                                    puntosEncontrados++;
+                                }
+                            });
+            
+                            if (puntosEncontrados > 0) {
+                                map.fitBounds(limitesLimpios, { padding: [30, 30], maxZoom: 18 });
+                            }
+                        }
+                    }
         }
         renderizarPanelCapas();
     }
