@@ -380,25 +380,64 @@
             }).filter(Boolean);
         }
 
-        function crearLayer(pm, style) {
+        function crearLayer(pm, style, rootName, subName) {
             const name = pm.querySelector(':scope > name')?.textContent?.trim() || '';
             const desc = pm.querySelector(':scope > description')?.textContent?.trim() || '';
             const popup = '<b>' + name + '</b>' + (desc ? '<br>' + desc : '');
             const layers = [];
-
+        
+            function asignarClick(l) {
+                l.on('click', () => resaltarCarpeta(rootName, subName));
+            }
+            function resaltarCarpeta(rootName, subName) {
+                // Abrir panel si está cerrado
+                document.getElementById('panel-capas').classList.add('abierto');
+            
+                // Quitar resaltado anterior
+                document.querySelectorAll('#capas-lista .subcarpeta-item, #capas-lista .carpeta-root-header')
+                    .forEach(el => el.style.background = '');
+            
+                // Buscar y resaltar el item correcto
+                document.querySelectorAll('#capas-lista .subcarpeta-item').forEach(item => {
+                    const label = item.querySelector('.subcarpeta-nombre');
+                    if (label && label.textContent.trim() === subName) {
+                        item.style.background = '#dbeafe';
+                        item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                });
+            
+                // Si es carpeta simple (sin subcarpetas visibles), resaltar el header
+                document.querySelectorAll('#capas-lista .carpeta-root-header').forEach(header => {
+                    const label = header.querySelector('.carpeta-nombre-root');
+                    if (label && label.textContent.trim() === rootName) {
+                        // Expandir si tiene subcarpetas
+                        const toggle = header.querySelector('.carpeta-toggle');
+                        if (toggle) {
+                            const uid = toggle.id.replace('toggle_', '');
+                            const sub = document.getElementById(uid);
+                            if (sub && !sub.classList.contains('visible')) {
+                                sub.classList.add('visible');
+                                toggle.classList.add('abierto');
+                            }
+                        }
+                    }
+                });
+            }
             pm.querySelectorAll('Polygon').forEach(poly => {
                 const c = coords(poly.querySelector('outerBoundaryIs coordinates'));
                 if (!c.length) return;
                 const color = hex(style.polyColor) || hex(style.lineColor) || '#3388ff';
                 const l = L.polygon(c, { color, fillColor: color, fillOpacity: 0.4 });
-                l.bindPopup(popup); if (name) l.bindTooltip(name, { sticky: true }); layers.push(l);
+                l.bindPopup(popup); if (name) l.bindTooltip(name, { sticky: true });
+                asignarClick(l); layers.push(l);
             });
             pm.querySelectorAll('LineString').forEach(line => {
                 const c = coords(line.querySelector('coordinates'));
                 if (!c.length) return;
                 const color = hex(style.lineColor) || '#e74c3c';
                 const l = L.polyline(c, { color, weight: 3 });
-                l.bindPopup(popup); if (name) l.bindTooltip(name, { sticky: true }); layers.push(l);
+                l.bindPopup(popup); if (name) l.bindTooltip(name, { sticky: true });
+                asignarClick(l); layers.push(l);
             });
             pm.querySelectorAll('Point').forEach(point => {
                 const c = coords(point.querySelector('coordinates'));
@@ -406,7 +445,8 @@
                 const m = style.iconHref
                     ? L.marker(c[0], { icon: L.icon({ iconUrl: style.iconHref, iconSize: [32,32], iconAnchor: [16,32], popupAnchor: [0,-32] }) })
                     : L.marker(c[0]);
-                m.bindPopup(popup); if (name) m.bindTooltip(name, { permanent: false, direction: 'top' }); layers.push(m);
+                m.bindPopup(popup); if (name) m.bindTooltip(name, { permanent: false, direction: 'top' });
+                asignarClick(m); layers.push(m);
             });
             return layers;
         }
@@ -423,7 +463,7 @@
             kmlDoc.querySelectorAll('Placemark').forEach(pm => {
                 const styleUrl = pm.querySelector('styleUrl')?.textContent?.trim();
                 const style = styles[styleUrl] || {};
-                crearLayer(pm, style).forEach(l => { lg.addLayer(l); carpetasData['General'].subcarpetas['General'].count++; });
+                crearLayer(pm, style, rootName, subName).forEach(l => { lg.addLayer(l); carpetasData['General'].subcarpetas['General'].count++; });
             });
         } else {
             rootFolders.forEach(rootFolder => {
@@ -439,7 +479,7 @@
                     carpetasData[rootName].subcarpetas[rootName] = { layerGroup: lg, count: 0 };
                     rootFolder.querySelectorAll(':scope > Placemark').forEach(pm => {
                         const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
-                        crearLayer(pm, style).forEach(l => { lg.addLayer(l); carpetasData[rootName].subcarpetas[rootName].count++; });
+                        crearLayer(pm, style, rootName, subName).forEach(l => { lg.addLayer(l); carpetasData[rootName].subcarpetas[rootName].count++; });
                     });
                 } else {
                     subFolders.forEach(subFolder => {
@@ -449,7 +489,7 @@
 
                         subFolder.querySelectorAll('Placemark').forEach(pm => {
                             const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
-                            crearLayer(pm, style).forEach(l => {
+                            crearLayer(pm, style, rootName, subName).forEach(l => {
                                 lg.addLayer(l);
                                 carpetasData[rootName].subcarpetas[subName].count++;
                                 if (l.getLatLng) todosLosBounds.push(l.getLatLng());
@@ -460,7 +500,7 @@
                         // Placemarks directos en subcarpeta
                         subFolder.querySelectorAll(':scope > Placemark').forEach(pm => {
                             const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
-                            crearLayer(pm, style).forEach(l => {
+                            crearLayer(pm, style, rootName, subName).forEach(l => {
                                 lg.addLayer(l);
                                 carpetasData[rootName].subcarpetas[subName].count++;
                             });
@@ -474,7 +514,7 @@
                         carpetasData[rootName].subcarpetas['(Sin subcarpeta)'] = { layerGroup: lg, count: 0 };
                         directos.forEach(pm => {
                             const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
-                            crearLayer(pm, style).forEach(l => { lg.addLayer(l); carpetasData[rootName].subcarpetas['(Sin subcarpeta)'].count++; });
+                            crearLayer(pm, style, rootName, subName).forEach(l => { lg.addLayer(l); carpetasData[rootName].subcarpetas['(Sin subcarpeta)'].count++; });
                         });
                     }
                 }
