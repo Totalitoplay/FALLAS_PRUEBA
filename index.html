@@ -154,6 +154,7 @@
         .subcarpeta-nombre { font-size: 12px; color: #334155; flex: 1; line-height: 1.3; }
         .subcarpeta-count { font-size: 11px; color: #94a3b8; white-space: nowrap; }
 
+        /* Checkbox de carpeta raíz */
         .carpeta-root-header input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: #2563eb; flex-shrink: 0; }
 
         @media (max-width: 600px) {
@@ -175,6 +176,7 @@
     </div>
 </div>
 
+<!-- Vista Lista -->
 <div id="view-lista" class="active">
     <div id="lista-scroll">
         <div class="card">
@@ -215,6 +217,7 @@
     </div>
 </div>
 
+<!-- Vista Mapa -->
 <div id="view-mapa">
     <div id="mapa-toolbar">
         <select id="kmzSelect">
@@ -237,7 +240,6 @@
                 <button id="btn-cerrar-capas" onclick="togglePanelCapas()">✕</button>
             </div>
             <div id="capas-acciones">
-                <!-- Se agregó la lógica a los botones "Todas" y "Ninguna" -->
                 <button class="btn-capas-accion" onclick="toggleTodasCapas(true)">✅ Todas</button>
                 <button class="btn-capas-accion" onclick="toggleTodasCapas(false)">⬜ Ninguna</button>
             </div>
@@ -250,17 +252,16 @@
 <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="app.js?v=100"></script>
 <script>
-var mapaIniciado = false;
+    var mapaIniciado = false;
     var map, pinActual;
-    window.carpetasData = {}; 
-    window.capasArray = []; 
-    const BASE_URL = 'https://raw.githack.com/Totalitoplay/kmz-finder/main/';
+    var carpetasData = {}; // { nombreCarpeta: { layerGroup, subcarpetas: { nombre: layerGroup } } }
+    const BASE_URL = 'https://api.allorigins.win/raw?url=https://raw.githubusercontent.com/Totalitoplay/kmz-finder/main/';
 
+    /* ── Tabs ── */
     function switchTab(tab) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('#view-lista, #view-mapa').forEach(v => v.classList.remove('active'));
-        const btn = document.querySelector('.tab-btn[onclick="switchTab(\'' + tab + '\')"]');
-        if(btn) btn.classList.add('active');
+        document.querySelector('.tab-btn[onclick="switchTab(\'' + tab + '\')"]').classList.add('active');
         document.getElementById('view-' + tab).classList.add('active');
         if (tab === 'mapa') {
             if (!mapaIniciado) { iniciarMapa(); mapaIniciado = true; }
@@ -268,21 +269,22 @@ var mapaIniciado = false;
         }
     }
 
+    /* ── Panel capas ── */
     function togglePanelCapas() {
         document.getElementById('panel-capas').classList.toggle('abierto');
     }
 
     function toggleTodasCapas(visible) {
-        window.capasArray.forEach(layer => {
-            if (visible) map.addLayer(layer);
-            else map.removeLayer(layer);
+        Object.values(carpetasData).forEach(carpeta => {
+            Object.values(carpeta.subcarpetas).forEach(sub => {
+                if (visible) map.addLayer(sub.layerGroup);
+                else map.removeLayer(sub.layerGroup);
+            });
         });
-        document.querySelectorAll('#capas-lista input[type="checkbox"]').forEach(cb => {
-            cb.checked = visible;
-            cb.indeterminate = false; // Limpia el estado de "medio seleccionado"
-        });
+        document.querySelectorAll('#capas-lista input[type="checkbox"]').forEach(cb => cb.checked = visible);
     }
 
+    /* ── Mapa ── */
     function iniciarMapa() {
         map = L.map('map').setView([25.68, -100.31], 8);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
@@ -293,11 +295,13 @@ var mapaIniciado = false;
         document.getElementById('fileInput').addEventListener('change', async function(e) {
             const file = e.target.files[0]; if (!file) return;
             setPinInfo('Cargando ' + file.name + '...');
-            const buffer = await file.arrayBuffer();
-            await parsearKMZ(buffer);
+            await parsearKMZ(await file.arrayBuffer());
             setPinInfo(file.name + ' ✓');
         });
         document.getElementById('btn-ir').addEventListener('click', irManual);
+        ['latInput','lngInput'].forEach(id => {
+            document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') irManual(); });
+        });
     }
 
     function setPinInfo(txt) { document.getElementById('mapa-pin-info').textContent = txt; }
@@ -315,266 +319,246 @@ var mapaIniciado = false;
         setTimeout(() => {
             map.invalidateSize();
             if (pinActual) map.removeLayer(pinActual);
-            pinActual = L.marker([lat, lng]).addTo(map);
-            pinActual.bindPopup('<b>' + (label || '') + '</b>').openPopup();
+            pinActual = L.marker([lat, lng], {
+                icon: L.divIcon({
+                    className: '',
+                    html: '<div style="background:#ea580c;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 0 6px rgba(0,0,0,0.4)"></div>',
+                    iconAnchor: [8, 8]
+                })
+            }).addTo(map);
+            pinActual.bindPopup('<b>' + (label || '') + '</b><br>' + lat + ', ' + lng).openPopup();
             map.setView([lat, lng], 16);
+            setPinInfo('📍 ' + (label || lat + ', ' + lng));
         }, 150);
     }
 
     async function cargarKMZDesdeURL(filename) {
         setPinInfo('Cargando ' + filename + '...');
         try {
-            const r = await fetch(BASE_URL + encodeURI(filename));
-            if (!r.ok) throw new Error('Error al descargar archivo');
+            const r = await fetch(BASE_URL + filename);
+            if (!r.ok) throw new Error('HTTP ' + r.status);
             await parsearKMZ(await r.arrayBuffer());
             setPinInfo(filename + ' ✓');
         } catch (err) { setPinInfo('Error: ' + err.message); }
     }
 
     async function parsearKMZ(buffer) {
-        if (window.capasArray) {
-            window.capasArray.forEach(layer => map.removeLayer(layer));
-        }
-        window.carpetasData = {};
-        window.capasArray = [];
+        // Limpiar capas anteriores
+        Object.values(carpetasData).forEach(c => {
+            Object.values(c.subcarpetas).forEach(s => map.removeLayer(s.layerGroup));
+        });
+        carpetasData = {};
 
         const zip = await JSZip.loadAsync(buffer);
-        const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml'));
+        const kmlFile = Object.values(zip.files).find(f => f.name.endsWith('.kml'));
         if (!kmlFile) { alert('No se encontró KML'); return; }
+        const kmlDoc = new DOMParser().parseFromString(await kmlFile.async('string'), 'text/xml');
 
-        let kmlText = await kmlFile.async('string');
-        kmlText = kmlText.replace(/xmlns(:\w+)?="[^"]*"/g, '');
-        
-        const kmlDoc = new DOMParser().parseFromString(kmlText, 'text/xml');
-        const todosLosBounds = [];
+        // Estilos
+        const styles = {};
+        kmlDoc.querySelectorAll('Style').forEach(s => {
+            const id = s.getAttribute('id'); if (!id) return;
+            styles['#' + id] = {
+                iconHref: s.querySelector('IconStyle Icon href')?.textContent?.trim(),
+                lineColor: s.querySelector('LineStyle color')?.textContent?.trim(),
+                polyColor: s.querySelector('PolyStyle color')?.textContent?.trim()
+            };
+        });
+        kmlDoc.querySelectorAll('StyleMap').forEach(sm => {
+            const id = sm.getAttribute('id');
+            const pair = [...sm.querySelectorAll('Pair')].find(p => p.querySelector('key')?.textContent === 'normal');
+            const url = pair?.querySelector('styleUrl')?.textContent?.trim();
+            if (id && url) styles['#' + id] = styles[url] || {};
+        });
 
-        function extraerCoords(str) {
-            if (!str) return [];
-            const limpia = str.replace(/[\t\n\r]/g, ' ').trim();
-            return limpia.split(/\s+/).map(s => {
-                const p = s.split(',').map(Number);
-                return (p.length >= 2 && !isNaN(p[0])) ? [p[1], p[0]] : null;
+        function hex(c) { return (!c || c.length < 8) ? null : '#' + c.slice(6,8) + c.slice(4,6) + c.slice(2,4); }
+        function coords(el) {
+            if (!el?.textContent) return [];
+            return el.textContent.trim().split(/\s+/).map(c => {
+                const p = c.split(',').map(Number);
+                return (p.length < 2 || isNaN(p[0]) || isNaN(p[1])) ? null : [p[1], p[0]];
             }).filter(Boolean);
         }
 
-        function crearLayer(pm) {
+        function crearLayer(pm, style) {
+            const name = pm.querySelector(':scope > name')?.textContent?.trim() || '';
+            const desc = pm.querySelector(':scope > description')?.textContent?.trim() || '';
+            const popup = '<b>' + name + '</b>' + (desc ? '<br>' + desc : '');
             const layers = [];
-            const nameNode = pm.getElementsByTagName('name')[0];
-            const name = nameNode ? nameNode.textContent.trim() : 'Sin nombre';
 
-            // Marcadores
-            const points = pm.getElementsByTagName('Point');
-            for(let i = 0; i < points.length; i++) {
-                const coordsNode = points[i].getElementsByTagName('coordinates')[0];
-                if (coordsNode) {
-                    const c = extraerCoords(coordsNode.textContent);
-                    if (c[0]) {
-                        const m = L.circleMarker(c[0], { radius: 6, color: '#fff', fillColor: '#ea580c', fillOpacity: 1, weight: 2 });
-                        m.bindPopup(`<b>${name}</b>`);
-                        layers.push(m);
-                    }
-                }
-            }
-
-            // Rutas / Líneas
-            const lines = pm.getElementsByTagName('LineString');
-            for(let i = 0; i < lines.length; i++) {
-                const coordsNode = lines[i].getElementsByTagName('coordinates')[0];
-                if (coordsNode) {
-                    const c = extraerCoords(coordsNode.textContent);
-                    if (c.length > 1) {
-                        const l = L.polyline(c, { color: '#3b82f6', weight: 4 });
-                        l.bindPopup(`<b>${name}</b>`);
-                        layers.push(l);
-                    }
-                }
-            }
-
-            // Áreas / Polígonos
-            const polys = pm.getElementsByTagName('Polygon');
-            for(let i = 0; i < polys.length; i++) {
-                const coordsNode = polys[i].getElementsByTagName('coordinates')[0];
-                if (coordsNode) {
-                    const c = extraerCoords(coordsNode.textContent);
-                    if (c.length > 2) {
-                        const p = L.polygon(c, { color: '#10b981', fillOpacity: 0.4 });
-                        p.bindPopup(`<b>${name}</b>`);
-                        layers.push(p);
-                    }
-                }
-            }
+            pm.querySelectorAll('Polygon').forEach(poly => {
+                const c = coords(poly.querySelector('outerBoundaryIs coordinates'));
+                if (!c.length) return;
+                const color = hex(style.polyColor) || hex(style.lineColor) || '#3388ff';
+                const l = L.polygon(c, { color, fillColor: color, fillOpacity: 0.4 });
+                l.bindPopup(popup); if (name) l.bindTooltip(name, { sticky: true }); layers.push(l);
+            });
+            pm.querySelectorAll('LineString').forEach(line => {
+                const c = coords(line.querySelector('coordinates'));
+                if (!c.length) return;
+                const color = hex(style.lineColor) || '#e74c3c';
+                const l = L.polyline(c, { color, weight: 3 });
+                l.bindPopup(popup); if (name) l.bindTooltip(name, { sticky: true }); layers.push(l);
+            });
+            pm.querySelectorAll('Point').forEach(point => {
+                const c = coords(point.querySelector('coordinates'));
+                if (!c.length) return;
+                const m = style.iconHref
+                    ? L.marker(c[0], { icon: L.icon({ iconUrl: style.iconHref, iconSize: [32,32], iconAnchor: [16,32], popupAnchor: [0,-32] }) })
+                    : L.marker(c[0]);
+                m.bindPopup(popup); if (name) m.bindTooltip(name, { permanent: false, direction: 'top' }); layers.push(m);
+            });
             return layers;
         }
 
-        const placemarks = kmlDoc.getElementsByTagName('Placemark');
-        
-        for (let i = 0; i < placemarks.length; i++) {
-            const pm = placemarks[i];
-            
-            let path = [];
-            let curr = pm.parentNode;
-            while (curr && curr.nodeName !== 'Document' && curr.nodeName !== 'kml' && curr.nodeName !== '#document') {
-                if (curr.nodeName === 'Folder') {
-                    let folderName = 'Carpeta';
-                    for(let j=0; j<curr.childNodes.length; j++) {
-                        if(curr.childNodes[j].nodeName === 'name') {
-                            folderName = curr.childNodes[j].textContent.trim();
-                            break;
-                        }
-                    }
-                    path.unshift(folderName);
-                }
-                curr = curr.parentNode;
-            }
+        // Recorrer carpetas raíz → subcarpetas → placemarks
+        const todosLosBounds = [];
 
-            let rName = 'General';
-            let sName = 'General';
+        const rootFolders = [...kmlDoc.querySelectorAll('Document > Folder, kml > Folder')];
 
-            if (path.length > 0) {
-                rName = path[0]; 
-                if (path.length > 1) {
-                    sName = path.slice(1).join(' / '); 
+        // Si no hay carpetas, meter todo en una carpeta "General"
+        if (rootFolders.length === 0) {
+            const lg = L.layerGroup().addTo(map);
+            carpetasData['General'] = { subcarpetas: { 'General': { layerGroup: lg, count: 0 } } };
+            kmlDoc.querySelectorAll('Placemark').forEach(pm => {
+                const styleUrl = pm.querySelector('styleUrl')?.textContent?.trim();
+                const style = styles[styleUrl] || {};
+                crearLayer(pm, style).forEach(l => { lg.addLayer(l); carpetasData['General'].subcarpetas['General'].count++; });
+            });
+        } else {
+            rootFolders.forEach(rootFolder => {
+                const rootName = rootFolder.querySelector(':scope > name')?.textContent?.trim() || 'Sin nombre';
+                carpetasData[rootName] = { subcarpetas: {} };
+
+                // Subcarpetas dentro de esta carpeta raíz
+                const subFolders = [...rootFolder.querySelectorAll(':scope > Folder')];
+
+                if (subFolders.length === 0) {
+                    // Sin subcarpetas: meter placemarks directos
+                    const lg = L.layerGroup().addTo(map);
+                    carpetasData[rootName].subcarpetas[rootName] = { layerGroup: lg, count: 0 };
+                    rootFolder.querySelectorAll(':scope > Placemark').forEach(pm => {
+                        const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
+                        crearLayer(pm, style).forEach(l => { lg.addLayer(l); carpetasData[rootName].subcarpetas[rootName].count++; });
+                    });
                 } else {
-                    sName = '(Elementos directos)';
-                }
-            }
+                    subFolders.forEach(subFolder => {
+                        const subName = subFolder.querySelector(':scope > name')?.textContent?.trim() || 'Sin nombre';
+                        const lg = L.layerGroup().addTo(map);
+                        carpetasData[rootName].subcarpetas[subName] = { layerGroup: lg, count: 0 };
 
-            if (!window.carpetasData[rName]) window.carpetasData[rName] = { subcarpetas: {} };
-            if (!window.carpetasData[rName].subcarpetas[sName]) {
-                const newLayer = L.layerGroup().addTo(map);
-                const capaId = window.capasArray.length;
-                window.capasArray.push(newLayer);
-                
-                window.carpetasData[rName].subcarpetas[sName] = { 
-                    layerGroup: newLayer, 
-                    id: capaId, 
-                    count: 0 
-                };
-            }
+                        subFolder.querySelectorAll('Placemark').forEach(pm => {
+                            const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
+                            crearLayer(pm, style).forEach(l => {
+                                lg.addLayer(l);
+                                carpetasData[rootName].subcarpetas[subName].count++;
+                                if (l.getLatLng) todosLosBounds.push(l.getLatLng());
+                                else if (l.getBounds) { const b = l.getBounds(); todosLosBounds.push(b.getNorthEast(), b.getSouthWest()); }
+                            });
+                        });
 
-            const capaRef = window.carpetasData[rName].subcarpetas[sName];
-            const layers = crearLayer(pm);
-            
-            layers.forEach(l => {
-                l.addTo(capaRef.layerGroup);
-                capaRef.count++;
-                
-                if (l.getLatLng) todosLosBounds.push(l.getLatLng());
-                else if (l.getBounds) {
-                    const b = l.getBounds();
-                    if (b.isValid()) {
-                        todosLosBounds.push(b.getNorthEast(), b.getSouthWest());
+                        // Placemarks directos en subcarpeta
+                        subFolder.querySelectorAll(':scope > Placemark').forEach(pm => {
+                            const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
+                            crearLayer(pm, style).forEach(l => {
+                                lg.addLayer(l);
+                                carpetasData[rootName].subcarpetas[subName].count++;
+                            });
+                        });
+                    });
+
+                    // Placemarks directos en raíz (fuera de subcarpetas)
+                    const directos = [...rootFolder.querySelectorAll(':scope > Placemark')];
+                    if (directos.length) {
+                        const lg = L.layerGroup().addTo(map);
+                        carpetasData[rootName].subcarpetas['(Sin subcarpeta)'] = { layerGroup: lg, count: 0 };
+                        directos.forEach(pm => {
+                            const style = styles[pm.querySelector('styleUrl')?.textContent?.trim()] || {};
+                            crearLayer(pm, style).forEach(l => { lg.addLayer(l); carpetasData[rootName].subcarpetas['(Sin subcarpeta)'].count++; });
+                        });
                     }
                 }
             });
         }
 
-        if (todosLosBounds.length) {
-            map.fitBounds(L.latLngBounds(todosLosBounds), { padding: [30, 30] });
-        }
+        // Ajustar vista
+        if (todosLosBounds.length) map.fitBounds(L.latLngBounds(todosLosBounds));
 
+        // Renderizar panel capas
         renderizarPanelCapas();
     }
 
-    // 🔥 AQUI ESTÁ LA MAGIA: Interfaz reconstruida con Checkbox Maestro
     function renderizarPanelCapas() {
         const lista = document.getElementById('capas-lista');
         lista.innerHTML = '';
-        
-        Object.entries(window.carpetasData).forEach(([rName, data]) => {
-            const div = document.createElement('div');
-            div.className = 'carpeta-root';
-            
-            // --- HEADER DE LA CARPETA PRINCIPAL ---
-            const header = document.createElement('div');
-            header.className = 'carpeta-root-header';
-            
-            const rootCb = document.createElement('input');
-            rootCb.type = 'checkbox';
-            rootCb.checked = true; // Empieza prendido
-            
-            const titleSpan = document.createElement('span');
-            titleSpan.className = 'carpeta-nombre-root';
-            titleSpan.textContent = rName;
-            
-            const toggleIcon = document.createElement('span');
-            toggleIcon.className = 'carpeta-toggle';
-            toggleIcon.textContent = '▶';
-            
-            header.appendChild(rootCb);
-            header.appendChild(titleSpan);
-            header.appendChild(toggleIcon);
-            div.appendChild(header);
 
-            // --- CONTENEDOR DE SUBCARPETAS ---
-            const subContainer = document.createElement('div');
-            subContainer.className = 'subcarpetas';
-            
-            // Lógica para desplegar el menú al hacer clic en el texto o la flecha
-            titleSpan.onclick = toggleIcon.onclick = (e) => {
-                e.stopPropagation();
-                subContainer.classList.toggle('visible');
-                toggleIcon.classList.toggle('abierto');
-            };
+        Object.entries(carpetasData).forEach(([rootName, data]) => {
+            const subEntries = Object.entries(data.subcarpetas);
+            const solamente1 = subEntries.length === 1 && subEntries[0][0] === rootName;
 
-            const subCheckboxes = [];
+            const rootDiv = document.createElement('div');
+            rootDiv.className = 'carpeta-root';
 
-            Object.entries(data.subcarpetas).forEach(([sName, sData]) => {
-                const sDiv = document.createElement('div');
-                sDiv.className = 'subcarpeta-item';
-                
-                const cb = document.createElement('input');
-                cb.type = 'checkbox';
-                cb.checked = map.hasLayer(window.capasArray[sData.id]); 
-                
-                // Si apagas una subcarpeta, se actualiza el estado del maestro
-                cb.onchange = function() { 
-                    toggleCapa(sData.id, this.checked); 
-                    const allChecked = subCheckboxes.every(c => c.checked);
-                    const someChecked = subCheckboxes.some(c => c.checked);
-                    rootCb.checked = allChecked;
-                    rootCb.indeterminate = someChecked && !allChecked; // Muestra un "cuadrito" si está a medias
-                };
-                subCheckboxes.push(cb);
-                
-                const span = document.createElement('span');
-                span.className = 'subcarpeta-nombre';
-                span.textContent = sName + ' (' + sData.count + ')';
-                
-                sDiv.appendChild(cb);
-                sDiv.appendChild(span);
-                subContainer.appendChild(sDiv);
-            });
-            
-            // --- CHECKBOX MAESTRO: Apaga/Prende TODO el bloque ---
-            rootCb.onchange = function(e) {
-                const visible = this.checked;
-                // Recorrer todas las subcarpetas de este bloque
-                Object.values(data.subcarpetas).forEach((sData, index) => {
-                    const cb = subCheckboxes[index];
-                    if(cb.checked !== visible) {
-                        cb.checked = visible;
-                        toggleCapa(sData.id, visible);
-                    }
-                });
-            };
+            if (solamente1) {
+                // Sin subcarpetas: checkbox simple
+                const [subName, subData] = subEntries[0];
+                rootDiv.innerHTML = `
+                    <div class="carpeta-root-header">
+                        <input type="checkbox" checked onchange="toggleSubcarpeta('${rootName}','${subName}', this.checked)">
+                        <span class="carpeta-nombre-root">${rootName}</span>
+                        <span class="subcarpeta-count">${subData.count}</span>
+                    </div>`;
+            } else {
+                // Con subcarpetas: expandible
+                const todosChecked = subEntries.every(([,s]) => map.hasLayer(s.layerGroup));
+                const uid = 'folder_' + Math.random().toString(36).slice(2);
+                rootDiv.innerHTML = `
+                    <div class="carpeta-root-header" onclick="toggleFolder('${uid}', event)">
+                        <input type="checkbox" ${todosChecked ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleCarpetaRoot('${rootName}', this.checked)">
+                        <span class="carpeta-nombre-root">${rootName}</span>
+                        <span class="carpeta-toggle" id="toggle_${uid}">▶</span>
+                    </div>
+                    <div class="subcarpetas" id="${uid}">
+                        ${subEntries.map(([subName, subData]) => `
+                        <div class="subcarpeta-item">
+                            <input type="checkbox" checked
+                                onchange="toggleSubcarpeta('${rootName.replace(/'/g,"\\'")}','${subName.replace(/'/g,"\\'")}', this.checked)">
+                            <span class="subcarpeta-nombre">${subName}</span>
+                            <span class="subcarpeta-count">${subData.count}</span>
+                        </div>`).join('')}
+                    </div>`;
+            }
 
-            // Iniciar el estado visual del checkbox maestro
-            const initAllChecked = subCheckboxes.every(c => c.checked);
-            rootCb.checked = initAllChecked;
-
-            div.appendChild(subContainer);
-            lista.appendChild(div);
+            lista.appendChild(rootDiv);
         });
     }
 
-    function toggleCapa(id, visible) {
-        const layer = window.capasArray[id];
-        if (visible) map.addLayer(layer); 
-        else map.removeLayer(layer);
+    function toggleFolder(uid, event) {
+        const sub = document.getElementById(uid);
+        const toggle = document.getElementById('toggle_' + uid);
+        sub.classList.toggle('visible');
+        toggle.classList.toggle('abierto');
     }
 
-    /* ── Renderizado de Lista ── */
+    function toggleSubcarpeta(rootName, subName, visible) {
+        const sub = carpetasData[rootName]?.subcarpetas[subName];
+        if (!sub) return;
+        if (visible) map.addLayer(sub.layerGroup);
+        else map.removeLayer(sub.layerGroup);
+    }
+
+    function toggleCarpetaRoot(rootName, visible) {
+        const carpeta = carpetasData[rootName];
+        if (!carpeta) return;
+        Object.values(carpeta.subcarpetas).forEach(sub => {
+            if (visible) map.addLayer(sub.layerGroup);
+            else map.removeLayer(sub.layerGroup);
+        });
+        // Sincronizar checkboxes de subcarpetas
+        renderizarPanelCapas();
+    }
+
+    /* ── Overrides app.js ── */
     function renderizarTabla(datos) {
         const tbody = document.querySelector('#resultTable tbody');
         if (!datos.length) {
@@ -620,4 +604,3 @@ var mapaIniciado = false;
 </script>
 </body>
 </html>
-```</Polygon></LineString></Point>
