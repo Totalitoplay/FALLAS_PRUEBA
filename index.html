@@ -252,7 +252,10 @@
 <script>
     var mapaIniciado = false;
     var map, pinActual;
+    
+    // 🔥 Usaremos un Array para guardar las capas de forma 100% segura
     window.carpetasData = {}; 
+    window.capasArray = []; 
     const BASE_URL = 'https://raw.githack.com/Totalitoplay/kmz-finder/main/';
 
     function switchTab(tab) {
@@ -271,13 +274,10 @@
         document.getElementById('panel-capas').classList.toggle('abierto');
     }
 
-    // 🔥 Agregada la función faltante para los botones "Todas" / "Ninguna"
     function toggleTodasCapas(visible) {
-        Object.values(window.carpetasData).forEach(carpeta => {
-            Object.values(carpeta.subcarpetas).forEach(sub => {
-                if (visible) map.addLayer(sub.layerGroup);
-                else map.removeLayer(sub.layerGroup);
-            });
+        window.capasArray.forEach(layer => {
+            if (visible) map.addLayer(layer);
+            else map.removeLayer(layer);
         });
         document.querySelectorAll('#capas-lista input[type="checkbox"]').forEach(cb => cb.checked = visible);
     }
@@ -323,7 +323,7 @@
     async function cargarKMZDesdeURL(filename) {
         setPinInfo('Cargando ' + filename + '...');
         try {
-            const r = await fetch(BASE_URL + filename);
+            const r = await fetch(BASE_URL + encodeURI(filename));
             if (!r.ok) throw new Error('Error al descargar archivo');
             await parsearKMZ(await r.arrayBuffer());
             setPinInfo(filename + ' ✓');
@@ -331,12 +331,12 @@
     }
 
     async function parsearKMZ(buffer) {
-        if (window.carpetasData) {
-            Object.values(window.carpetasData).forEach(c => {
-                Object.values(c.subcarpetas).forEach(s => map.removeLayer(s.layerGroup));
-            });
+        // Limpiar completamente las capas anteriores
+        if (window.capasArray) {
+            window.capasArray.forEach(layer => map.removeLayer(layer));
         }
         window.carpetasData = {};
+        window.capasArray = [];
 
         const zip = await JSZip.loadAsync(buffer);
         const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml'));
@@ -357,7 +357,6 @@
             }).filter(Boolean);
         }
 
-        // 🔥 DIBUJA PUNTOS, LÍNEAS Y ÁREAS POR IGUAL
         function crearLayer(pm) {
             const layers = [];
             const nameNode = pm.getElementsByTagName('name')[0];
@@ -407,13 +406,12 @@
             return layers;
         }
 
-        // 🔥 BÚSQUEDA GLOBAL (Soluciona cualquier nivel de carpetas)
         const placemarks = kmlDoc.getElementsByTagName('Placemark');
         
         for (let i = 0; i < placemarks.length; i++) {
             const pm = placemarks[i];
             
-            // Subir por el árbol para armar la ruta de carpetas
+            // Reconstruir la ruta exacta de la carpeta (Ej: Troncal -> Fibras -> 1N)
             let path = [];
             let curr = pm.parentNode;
             while (curr && curr.nodeName !== 'Document' && curr.nodeName !== 'kml' && curr.nodeName !== '#document') {
@@ -430,29 +428,40 @@
                 curr = curr.parentNode;
             }
 
-            // Asignar nombres principales y secundarios
             let rName = 'General';
             let sName = 'General';
 
-            if (path.length === 1) {
-                rName = path[0];
-                sName = path[0];
-            } else if (path.length >= 2) {
-                rName = path[0]; // La carpeta de más arriba
-                sName = path[path.length - 1]; // La carpeta más cercana al punto
+            if (path.length > 0) {
+                rName = path[0]; // La carpeta Raíz
+                if (path.length > 1) {
+                    // 🔥 UNIMOS todas las subcarpetas para que NO se sobreescriban
+                    sName = path.slice(1).join(' / '); 
+                } else {
+                    sName = '(Elementos directos)';
+                }
             }
 
-            // Crear el layer group dinámicamente si no existe
+            // Construir la estructura de datos y asignarles un ID numérico único
             if (!window.carpetasData[rName]) window.carpetasData[rName] = { subcarpetas: {} };
             if (!window.carpetasData[rName].subcarpetas[sName]) {
-                window.carpetasData[rName].subcarpetas[sName] = { layerGroup: L.layerGroup().addTo(map), count: 0 };
+                const newLayer = L.layerGroup().addTo(map);
+                const capaId = window.capasArray.length;
+                window.capasArray.push(newLayer);
+                
+                window.carpetasData[rName].subcarpetas[sName] = { 
+                    layerGroup: newLayer, 
+                    id: capaId, 
+                    count: 0 
+                };
             }
 
-            // Añadir al mapa
+            // Añadir los elementos a su capa específica
+            const capaRef = window.carpetasData[rName].subcarpetas[sName];
             const layers = crearLayer(pm);
+            
             layers.forEach(l => {
-                l.addTo(window.carpetasData[rName].subcarpetas[sName].layerGroup);
-                window.carpetasData[rName].subcarpetas[sName].count++;
+                l.addTo(capaRef.layerGroup);
+                capaRef.count++;
                 
                 if (l.getLatLng) todosLosBounds.push(l.getLatLng());
                 else if (l.getBounds) {
@@ -467,7 +476,7 @@
         if (todosLosBounds.length) {
             map.fitBounds(L.latLngBounds(todosLosBounds), { padding: [30, 30] });
         } else {
-            alert("Se leyó el archivo pero no contiene ni Puntos, Líneas o Polígonos compatibles.");
+            alert("Se leyó el archivo pero no contiene geometrías compatibles.");
         }
 
         renderizarPanelCapas();
@@ -476,33 +485,41 @@
     function renderizarPanelCapas() {
         const lista = document.getElementById('capas-lista');
         lista.innerHTML = '';
+        
         Object.entries(window.carpetasData).forEach(([rName, data]) => {
             const div = document.createElement('div');
             div.className = 'carpeta-root';
             div.innerHTML = `<div class="carpeta-root-header"><b>${rName}</b></div>`;
             
             Object.entries(data.subcarpetas).forEach(([sName, sData]) => {
-                // Escapar nombres para no romper el HTML
-                const rSafe = rName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                const sSafe = sName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                
+                // 🔥 Creamos los elementos mediante JS puro para evitar inyecciones de código HTML
                 const sDiv = document.createElement('div');
                 sDiv.className = 'subcarpeta-item';
-                sDiv.innerHTML = `
-                    <input type="checkbox" checked onchange="toggleCapa('${rSafe}','${sSafe}', this.checked)">
-                    <span class="subcarpeta-nombre">${sName} (${sData.count})</span>
-                `;
+                
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = map.hasLayer(sData.layerGroup); 
+                cb.onchange = function() { toggleCapa(sData.id, this.checked); };
+                
+                const span = document.createElement('span');
+                span.className = 'subcarpeta-nombre';
+                span.textContent = sName + ' (' + sData.count + ')';
+                
+                sDiv.appendChild(cb);
+                sDiv.appendChild(span);
                 div.appendChild(sDiv);
             });
             lista.appendChild(div);
         });
     }
 
-    function toggleCapa(r, s, v) {
-        const layer = window.carpetasData[r].subcarpetas[s].layerGroup;
-        if (v) map.addLayer(layer); else map.removeLayer(layer);
+    function toggleCapa(id, visible) {
+        const layer = window.capasArray[id];
+        if (visible) map.addLayer(layer); 
+        else map.removeLayer(layer);
     }
 
+    /* ── Mantenemos intactas tus funciones de la lista ── */
     function renderizarTabla(datos) {
         const tbody = document.querySelector('#resultTable tbody');
         if (!datos.length) {
