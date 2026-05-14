@@ -139,6 +139,14 @@ textarea:focus { outline: 2px solid #93c5fd; border-color: var(--primary); }
 }
 .btn-ver-mapa:hover { background: #15803d; }
 
+.btn-google {
+    background: #ea4335; color: white; border: none; padding: 6px 12px;
+    border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+    text-decoration: none; text-align: center; transition: background 0.15s;
+    display: flex; align-items: center; justify-content: center;
+}
+.btn-google:hover { background: #c5221f; }
+
 /* ── Mapa y Toolbar ── */
 #mapa-toolbar {
     background: var(--slate-800); padding: 10px 15px;
@@ -209,5 +217,15 @@ textarea:focus { outline: 2px solid #93c5fd; border-color: var(--primary); }
     
     .btn-ver-mapa {
         display: block; width: 100%; padding: 12px; font-size: 14px;
+    }
+    .acciones-mapa { 
+        width: 100%; 
+        flex-direction: column; /* Apila los botones uno sobre otro en el cel */
+    }
+    .btn-google { 
+        display: block; 
+        width: 100%; 
+        padding: 12px; 
+        font-size: 14px; 
     }
 }
