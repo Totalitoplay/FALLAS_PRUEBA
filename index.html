@@ -150,6 +150,7 @@
         #map { flex: 1; }
 
         /* ── Panel capas ── */
+        
         #panel-capas {
             width: 300px; background: white; border-left: 1px solid #e2e8f0;
             display: flex; flex-direction: column;
@@ -339,6 +340,15 @@
     }
 
     /* ── Panel capas ── */
+    function togglePanelCapas() {
+        const panel = document.getElementById('panel-capas');
+        if (panel) panel.classList.toggle('abierto');
+        
+        // Refrescar el tamaño del mapa al abrir/cerrar el panel
+        if (mapaIniciado && map) {
+            setTimeout(() => map.invalidateSize(), 300);
+        }
+    }
     // 1. Nuevas variables globales para soportar niveles infinitos
     var arbolCarpetas = [];
     var folderMap = {};
