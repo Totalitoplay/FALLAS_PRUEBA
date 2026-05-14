@@ -317,7 +317,24 @@
         </div>
     </div>
 </div>
-
+<div id="modal-opciones-tp" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-drag-handle"></div>
+        <h3 id="modal-tp-title" style="margin-bottom: 5px; font-size: 16px; color: #1e293b;">Nombre del TP</h3>
+        <p style="font-size: 12px; color: #64748b; margin-bottom: 16px;">¿Dónde deseas visualizar este punto?</p>
+        
+        <div class="modal-buttons">
+            <button id="btn-modal-kmz" class="btn-primary" style="display: flex; justify-content: center; gap: 8px;">
+                <span>🗺️</span> Ver en este mapa (KMZ)
+            </button>
+            <a id="btn-modal-gmaps" href="#" target="_blank" class="btn-google" style="display: flex; justify-content: center; gap: 8px;">
+                <span>📍</span> Iniciar ruta en Google Maps
+            </a>
+        </div>
+        
+        <button class="btn-ghost" onclick="cerrarOpcionesTP()">Cancelar</button>
+    </div>
+</div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="app.js?v=100"></script>
@@ -721,6 +738,34 @@ function irACoordenadas(lat, lng, label) {
             setPinInfo(filename + ' ✓');
         } catch (err) { setPinInfo('Error: ' + err.message); }
     }
+    // ── Funciones del Modal del TP ──
+    function abrirOpcionesTP(lat, lng, tpLabel) {
+        // Quitamos el foco al teclado por si estaba abierto el buscador
+        document.activeElement.blur(); 
+        
+        // Asignamos el nombre del TP al título
+        document.getElementById('modal-tp-title').textContent = tpLabel || 'Ubicación seleccionada';
+        
+        // Configuramos la acción del botón KMZ
+        const btnKmz = document.getElementById('btn-modal-kmz');
+        btnKmz.onclick = () => {
+            cerrarOpcionesTP();
+            irACoordenadas(lat, lng, tpLabel);
+        };
+        
+        // Configuramos la acción del botón Google Maps
+        const btnGmaps = document.getElementById('btn-modal-gmaps');
+        btnGmaps.href = `https://www.google.com/maps?q=$${lat},${lng}`;
+        btnGmaps.onclick = () => cerrarOpcionesTP();
+        
+        // Mostramos el modal con animación
+        document.getElementById('modal-opciones-tp').classList.add('activo');
+    }
+
+    function cerrarOpcionesTP() {
+        const modal = document.getElementById('modal-opciones-tp');
+        modal.classList.remove('activo');
+    }
     /* ── Overrides app.js ── */
     function renderizarTabla(datos) {
             const tbody = document.querySelector('#resultTable tbody');
@@ -734,13 +779,10 @@ function irACoordenadas(lat, lng, label) {
                     return `<tr>
                         <td data-label="ESTADO">✅</td>
                         <td data-label="CUENTA"><b>${res.cuenta}</b></td>
-                        <td data-label="QR"><span class="qr-badge" onclick="copiarQR('${res.qr}', this)" title="Tap para copiar">${res.qr}</span></td>
+                        <td data-label="TP"><span class="qr-badge" onclick="copiarQR('${res.qr}', this)" title="Tap para copiar">${res.qr}</span></td>
                         <td data-label="COORD" style="font-size:11px;color:#64748b;">${res.lat}, ${res.lon}</td>
                         <td data-label="MAPA">
-                            <div class="acciones-mapa" style="display: flex; gap: 6px;">
-                                <button class="btn-ver-mapa" onclick="irACoordenadas(${lat},${lng},'${res.qr} · ${res.cuenta}')">🗺 Ver</button>
-                                <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="btn-google">📍 G-Maps</a>
-                            </div>
+                            <button class="btn-primary" style="padding: 8px;" onclick="abrirOpcionesTP(${lat}, ${lng}, '${res.qr}')">🗺️ Ubicación</button>
                         </td>
                     </tr>`;
                 } else {
@@ -761,7 +803,7 @@ function irACoordenadas(lat, lng, label) {
             const dato = resultadosActuales.find(r => r.qr === qr && r.encontrado);
             const lat = dato ? parseFloat(dato.lat) : null;
             const lng = dato ? parseFloat(dato.lon) : null;
-            const click = lat ? `irACoordenadas(${lat},${lng},'${qr}')` : '';
+            const click = lat ? `abrirOpcionesTP(${lat},${lng},'${qr}')` : '';
             return `<div class="stat-card" onclick="${click}">
                 <span style="font-size:10px;font-weight:700;color:#2563eb;display:block;margin-bottom:4px;">🗺 VER MAPA</span>
                 <span style="font-size:12px;font-weight:700;color:#1e293b;display:block;border-bottom:1px dashed #cbd5e1;padding-bottom:4px;margin-bottom:4px;">${qr}</span>
