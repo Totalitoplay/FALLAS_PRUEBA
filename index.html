@@ -250,10 +250,8 @@
 <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="app.js?v=100"></script>
 <script>
-    var mapaIniciado = false;
+var mapaIniciado = false;
     var map, pinActual;
-    
-    // 🔥 Usaremos un Array para guardar las capas de forma 100% segura
     window.carpetasData = {}; 
     window.capasArray = []; 
     const BASE_URL = 'https://raw.githack.com/Totalitoplay/kmz-finder/main/';
@@ -279,7 +277,10 @@
             if (visible) map.addLayer(layer);
             else map.removeLayer(layer);
         });
-        document.querySelectorAll('#capas-lista input[type="checkbox"]').forEach(cb => cb.checked = visible);
+        document.querySelectorAll('#capas-lista input[type="checkbox"]').forEach(cb => {
+            cb.checked = visible;
+            cb.indeterminate = false; // Limpia el estado de "medio seleccionado"
+        });
     }
 
     function iniciarMapa() {
@@ -331,7 +332,6 @@
     }
 
     async function parsearKMZ(buffer) {
-        // Limpiar completamente las capas anteriores
         if (window.capasArray) {
             window.capasArray.forEach(layer => map.removeLayer(layer));
         }
@@ -411,7 +411,6 @@
         for (let i = 0; i < placemarks.length; i++) {
             const pm = placemarks[i];
             
-            // Reconstruir la ruta exacta de la carpeta (Ej: Troncal -> Fibras -> 1N)
             let path = [];
             let curr = pm.parentNode;
             while (curr && curr.nodeName !== 'Document' && curr.nodeName !== 'kml' && curr.nodeName !== '#document') {
@@ -432,16 +431,14 @@
             let sName = 'General';
 
             if (path.length > 0) {
-                rName = path[0]; // La carpeta Raíz
+                rName = path[0]; 
                 if (path.length > 1) {
-                    // 🔥 UNIMOS todas las subcarpetas para que NO se sobreescriban
                     sName = path.slice(1).join(' / '); 
                 } else {
                     sName = '(Elementos directos)';
                 }
             }
 
-            // Construir la estructura de datos y asignarles un ID numérico único
             if (!window.carpetasData[rName]) window.carpetasData[rName] = { subcarpetas: {} };
             if (!window.carpetasData[rName].subcarpetas[sName]) {
                 const newLayer = L.layerGroup().addTo(map);
@@ -455,7 +452,6 @@
                 };
             }
 
-            // Añadir los elementos a su capa específica
             const capaRef = window.carpetasData[rName].subcarpetas[sName];
             const layers = crearLayer(pm);
             
@@ -475,13 +471,12 @@
 
         if (todosLosBounds.length) {
             map.fitBounds(L.latLngBounds(todosLosBounds), { padding: [30, 30] });
-        } else {
-            alert("Se leyó el archivo pero no contiene geometrías compatibles.");
         }
 
         renderizarPanelCapas();
     }
 
+    // 🔥 AQUI ESTÁ LA MAGIA: Interfaz reconstruida con Checkbox Maestro
     function renderizarPanelCapas() {
         const lista = document.getElementById('capas-lista');
         lista.innerHTML = '';
@@ -489,17 +484,58 @@
         Object.entries(window.carpetasData).forEach(([rName, data]) => {
             const div = document.createElement('div');
             div.className = 'carpeta-root';
-            div.innerHTML = `<div class="carpeta-root-header"><b>${rName}</b></div>`;
             
+            // --- HEADER DE LA CARPETA PRINCIPAL ---
+            const header = document.createElement('div');
+            header.className = 'carpeta-root-header';
+            
+            const rootCb = document.createElement('input');
+            rootCb.type = 'checkbox';
+            rootCb.checked = true; // Empieza prendido
+            
+            const titleSpan = document.createElement('span');
+            titleSpan.className = 'carpeta-nombre-root';
+            titleSpan.textContent = rName;
+            
+            const toggleIcon = document.createElement('span');
+            toggleIcon.className = 'carpeta-toggle';
+            toggleIcon.textContent = '▶';
+            
+            header.appendChild(rootCb);
+            header.appendChild(titleSpan);
+            header.appendChild(toggleIcon);
+            div.appendChild(header);
+
+            // --- CONTENEDOR DE SUBCARPETAS ---
+            const subContainer = document.createElement('div');
+            subContainer.className = 'subcarpetas';
+            
+            // Lógica para desplegar el menú al hacer clic en el texto o la flecha
+            titleSpan.onclick = toggleIcon.onclick = (e) => {
+                e.stopPropagation();
+                subContainer.classList.toggle('visible');
+                toggleIcon.classList.toggle('abierto');
+            };
+
+            const subCheckboxes = [];
+
             Object.entries(data.subcarpetas).forEach(([sName, sData]) => {
-                // 🔥 Creamos los elementos mediante JS puro para evitar inyecciones de código HTML
                 const sDiv = document.createElement('div');
                 sDiv.className = 'subcarpeta-item';
                 
                 const cb = document.createElement('input');
                 cb.type = 'checkbox';
-                cb.checked = map.hasLayer(sData.layerGroup); 
-                cb.onchange = function() { toggleCapa(sData.id, this.checked); };
+                cb.checked = map.hasLayer(window.capasArray[sData.id]); 
+                
+                // Si apagas una subcarpeta, se actualiza el estado del maestro
+                cb.onchange = function() { 
+                    toggleCapa(sData.id, this.checked); 
+                    const allChecked = subCheckboxes.every(c => c.checked);
+                    const someChecked = subCheckboxes.some(c => c.checked);
+                    rootCb.checked = allChecked;
+                    rootCb.indeterminate = someChecked && !allChecked; // Muestra un "cuadrito" si está a medias
+                };
+                subCheckboxes.push(cb);
                 
                 const span = document.createElement('span');
                 span.className = 'subcarpeta-nombre';
@@ -507,8 +543,27 @@
                 
                 sDiv.appendChild(cb);
                 sDiv.appendChild(span);
-                div.appendChild(sDiv);
+                subContainer.appendChild(sDiv);
             });
+            
+            // --- CHECKBOX MAESTRO: Apaga/Prende TODO el bloque ---
+            rootCb.onchange = function(e) {
+                const visible = this.checked;
+                // Recorrer todas las subcarpetas de este bloque
+                Object.values(data.subcarpetas).forEach((sData, index) => {
+                    const cb = subCheckboxes[index];
+                    if(cb.checked !== visible) {
+                        cb.checked = visible;
+                        toggleCapa(sData.id, visible);
+                    }
+                });
+            };
+
+            // Iniciar el estado visual del checkbox maestro
+            const initAllChecked = subCheckboxes.every(c => c.checked);
+            rootCb.checked = initAllChecked;
+
+            div.appendChild(subContainer);
             lista.appendChild(div);
         });
     }
@@ -519,7 +574,7 @@
         else map.removeLayer(layer);
     }
 
-    /* ── Mantenemos intactas tus funciones de la lista ── */
+    /* ── Renderizado de Lista ── */
     function renderizarTabla(datos) {
         const tbody = document.querySelector('#resultTable tbody');
         if (!datos.length) {
