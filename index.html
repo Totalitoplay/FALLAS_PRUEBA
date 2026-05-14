@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>R3 Scripts</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    
+    <h2>Buscador de Cuentas e Inventario QR</h2>
+
+    <!-- Indicador de inventario -->
+    <p id="inventarioStatus" style="font-size:13px; color:#64748b; margin-bottom:12px;">
+        ⏳ Cargando inventario...
+    </p>
+    
+<div class="input-section">
+    <label>Cargar Listado de Clientes:</label>
+    <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+            <small>Opción A: Subir CSV de clientes</small>
+            <input type="file" id="clientCsvFile" accept=".csv" style="margin-top:5px;">
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+            <small>Opción B: Pegar reporte</small>
+            <textarea id="reportInput" placeholder="Pega aquí el reporte..."></textarea>
+        </div>
+    </div>
+    <button onclick="procesarBusqueda()" id="btnBuscar">🔍 Localizar QRs</button>
+    <button onclick="limpiarTodo()" class="btn-secondary">🗑️ Limpiar Resultados</button>
+</div>
+
+<!-- Contador de resultados -->
+<div id="resultCounter" style="display:none; font-size:14px; margin: 8px 0 4px; padding: 10px 16px; background:#fff; border-radius:8px; border:1px solid #e2e8f0; max-width:800px; width:100%;"></div>
+
+<div id="summaryStats" class="config" style="display:none;">
+    <label>📊 Resumen de Impacto por QR:</label>
+    <div id="statsContent" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px;"></div>
+</div>
+
+<table id="resultTable">
+    <thead>
+        <tr>
+            <th onclick="ordenarTabla(0)" style="cursor:pointer">Estado ↕️</th>
+            <th onclick="ordenarTabla(1)" style="cursor:pointer">Cuenta ↕️</th>
+            <th onclick="ordenarTabla(2)" style="cursor:pointer">QR ↕️</th>
+            <th>Coordenadas</th>
+            <th>Mapa</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+    <script src="app.js?v=100"></script>
+</body>
+</html>

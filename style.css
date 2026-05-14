@@ -1,0 +1,242 @@
+/* Importar una fuente moderna */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+:root {
+    --primary: #2563eb;    /* Azul moderno */
+    --secondary: #64748b;  /* Gris elegante */
+    --success: #16a34a;    /* Verde suave */
+    --warning: #ea580c;    /* Naranja vibrante */
+    --bg: #f8fafc;
+    --card: #ffffff;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg);
+    color: #1e293b;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+h2 {
+    color: #0f172a;
+    font-weight: 700;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+/* Contenedores de inputs */
+.config, .input-section {
+    background: var(--card);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    width: 100%;
+    max-width: 800px;
+    margin-bottom: 16px;
+    border: 1px solid #e2e8f0;
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: var(--secondary);
+}
+
+textarea {
+    width: 100%;
+    height: 120px;
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+    box-sizing: border-box;
+    margin-bottom: 12px;
+}
+
+textarea:focus {
+    outline: 2px solid #93c5fd;
+    border-color: var(--primary);
+}
+
+button {
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    font-size: 16px;
+}
+
+button:hover {
+    background-color: #1d4ed8;
+    transform: translateY(-1px);
+}
+
+/* Tabla Estilizada */
+#resultTable {
+    width: 100%;
+    max-width: 900px;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--card);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    margin-top: 20px;
+}
+
+#resultTable thead th {
+    background-color: #1e293b;
+    color: #f8fafc;
+    text-align: left;
+    padding: 16px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+#resultTable tbody td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 14px;
+}
+
+/* Efecto cebra y hover */
+#resultTable tbody tr:hover {
+    background-color: #f1f7ff;
+}
+
+/* Botón de Mapa en la tabla */
+.btn-mapa {
+    display: inline-block;
+    background-color: var(--success);
+    color: white;
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.btn-mapa:hover {
+    background-color: #15803d;
+}
+
+/* Badge para el QR */
+.qr-badge {
+    background: #fff7ed;
+    color: var(--warning);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    border: 1px solid #ffedd5;
+}
+
+/* Estilo para filas no encontradas */
+.no-encontrada {
+    background-color: #fff1f2 !important;
+    color: #be123c;
+}
+
+@media (max-width: 600px) {
+    body {
+        padding: 10px; /* Menos margen para ganar espacio */
+    }
+
+    .config, .input-section {
+        padding: 15px;
+        width: calc(100% - 30px);
+    }
+
+    h2 {
+        font-size: 1.2rem;
+    }
+
+    /* Convertimos la tabla en "Tarjetas" para que no se desborde */
+    #resultTable thead {
+        display: none; /* Escondemos los encabezados en celular */
+    }
+
+    #resultTable, #resultTable tbody, #resultTable tr, #resultTable td {
+        display: block;
+        width: 100%;
+    }
+
+    #resultTable tr {
+        margin-bottom: 15px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 10px;
+        box-sizing: border-box;
+        background: white;
+    }
+
+    #resultTable td {
+        text-align: left;
+        padding: 8px 5px;
+        border: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* Añadimos etiquetas automáticas para saber qué es cada dato */
+    #resultTable td::before {
+        content: attr(data-label); /* Necesita un ajuste en el JS que te daré abajo */
+        font-weight: bold;
+        color: var(--secondary);
+        font-size: 12px;
+    }
+
+    .btn-mapa {
+        width: 100%; /* Botón de mapa a todo lo ancho para el dedo */
+        padding: 12px;
+        text-align: center;
+        margin-top: 5px;
+    }
+
+    .qr-badge {
+        font-size: 16px; /* QR más grande para verlo rápido */
+    }
+    #summaryStats {
+    border-top: 4px solid var(--primary);
+}
+
+#statsContent div {
+    transition: transform 0.2s;
+    cursor: default;
+}
+
+#statsContent div:hover {
+    transform: scale(1.05);
+    background-color: #e2e8f0 !important;
+}
+
+/* Botón secundario para limpiar */
+.btn-secondary {
+    background-color: var(--secondary);
+    margin-top: 10px;
+    font-size: 14px;
+    padding: 8px;
+}
+}
+#statsContent a:hover {
+    opacity: 0.8;
+}
+
+#statsContent div:active {
+    transform: scale(0.95); /* Efecto de pulsación en el celular */
+}
