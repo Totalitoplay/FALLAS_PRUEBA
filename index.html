@@ -325,7 +325,7 @@ async function cargarKMZDesdeURL(filename) {
         } catch (err) { setPinInfo('Error: ' + err.message); }
     }
 async function parsearKMZ(buffer) {
-        // Limpiar
+        // 1. Limpiar el mapa
         if (window.carpetasData) {
             Object.values(window.carpetasData).forEach(c => {
                 Object.values(c.subcarpetas).forEach(s => map.removeLayer(s.layerGroup));
@@ -335,62 +335,90 @@ async function parsearKMZ(buffer) {
 
         const zip = await JSZip.loadAsync(buffer);
         const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml'));
-        const kmlText = await kmlFile.async('string');
-        const kmlDoc = new DOMParser().parseFromString(kmlText, 'text/xml');
+        if (!kmlFile) { alert('No se encontró KML'); return; }
 
+        let kmlText = await kmlFile.async('string');
+        
+        // 🔥 EL TRUCO MAGICO: Limpiamos los XML namespaces que ciegan al navegador
+        kmlText = kmlText.replace(/xmlns(:\w+)?="[^"]*"/g, '');
+        
+        const kmlDoc = new DOMParser().parseFromString(kmlText, 'text/xml');
         const todosLosBounds = [];
 
-        function extraerCoords(el) {
-            if (!el) return [];
-            const str = el.textContent.replace(/[\t\n\r]/g, ' ').trim();
-            return str.split(/\s+/).map(s => {
+        // Convierte el texto loco de Google Earth a Coordenadas
+        function extraerCoords(str) {
+            if (!str) return [];
+            const limpia = str.replace(/[\t\n\r]/g, ' ').trim();
+            return limpia.split(/\s+/).map(s => {
                 const p = s.split(',').map(Number);
                 return (p.length >= 2 && !isNaN(p[0])) ? [p[1], p[0]] : null;
             }).filter(Boolean);
         }
 
+        // Dibuja el marcador
         function crearLayer(pm) {
             const layers = [];
-            const name = pm.querySelector('name')?.textContent || 'Punto';
-            pm.querySelectorAll('Point coordinates').forEach(cEl => {
-                const c = extraerCoords(cEl);
-                if(c[0]) {
-                    const m = L.circleMarker(c[0], { radius: 7, color: '#2563eb', fillOpacity: 0.8 });
-                    m.bindPopup(`<b>${name}</b>`);
-                    layers.push(m);
+            // Usamos getElementsByTagName que es 100% seguro y a prueba de fallos
+            const nameNode = pm.getElementsByTagName('name')[0];
+            const name = nameNode ? nameNode.textContent.trim() : 'Punto';
+            
+            const points = pm.getElementsByTagName('Point');
+            for(let i = 0; i < points.length; i++) {
+                const coordsNode = points[i].getElementsByTagName('coordinates')[0];
+                if (coordsNode) {
+                    const c = extraerCoords(coordsNode.textContent);
+                    if (c[0]) {
+                        // Marcador naranja para que resalte
+                        const m = L.circleMarker(c[0], { 
+                            radius: 6, 
+                            color: '#fff', 
+                            fillColor: '#ea580c', 
+                            fillOpacity: 1, 
+                            weight: 2 
+                        });
+                        m.bindPopup(`<b>${name}</b>`);
+                        layers.push(m);
+                    }
                 }
-            });
+            }
             return layers;
         }
 
         function procesarFolder(folderEl, layerGroup) {
             let count = 0;
-            // Solo placemarks directos para evitar duplicidad
-            const pms = folderEl.querySelectorAll(':scope > Placemark');
-            pms.forEach(pm => {
-                crearLayer(pm).forEach(l => {
-                    l.addTo(layerGroup);
-                    count++;
-                    if (l.getLatLng) todosLosBounds.push(l.getLatLng());
-                });
-            });
+            const allPms = folderEl.getElementsByTagName('Placemark');
+            
+            for(let i = 0; i < allPms.length; i++) {
+                // Verificamos que el placemark pertenezca directamente a esta carpeta (para no duplicar en subcarpetas)
+                if (allPms[i].parentNode === folderEl) {
+                    crearLayer(allPms[i]).forEach(l => {
+                        l.addTo(layerGroup);
+                        count++;
+                        if (l.getLatLng) todosLosBounds.push(l.getLatLng());
+                    });
+                }
+            }
             return count;
         }
 
-        // Lógica de jerarquía
-        const rootFolders = [...kmlDoc.querySelectorAll('Document > Folder, kml > Folder')];
+        // Lógica de jerarquía de carpetas
+        const rootFolders = [...kmlDoc.getElementsByTagName('Folder')].filter(f => f.parentNode.nodeName === 'Document' || f.parentNode.nodeName === 'kml');
         
         if (rootFolders.length === 0) {
             const lg = L.layerGroup().addTo(map);
             window.carpetasData['General'] = { subcarpetas: { 'General': { layerGroup: lg, count: procesarFolder(kmlDoc, lg) } } };
         } else {
             rootFolders.forEach(root => {
-                const rName = root.querySelector(':scope > name')?.textContent || 'Carpeta';
+                const rNameNode = root.getElementsByTagName('name')[0];
+                const rName = rNameNode ? rNameNode.textContent.trim() : 'Carpeta';
                 window.carpetasData[rName] = { subcarpetas: {} };
-                const subs = [...root.querySelectorAll(':scope > Folder')];
+                
+                const subs = [...root.getElementsByTagName('Folder')].filter(f => f.parentNode === root);
+                
                 if (subs.length > 0) {
                     subs.forEach(sub => {
-                        const sName = sub.querySelector(':scope > name')?.textContent || 'Sub';
+                        const sNameNode = sub.getElementsByTagName('name')[0];
+                        const sName = sNameNode ? sNameNode.textContent.trim() : 'Sub';
                         const lg = L.layerGroup().addTo(map);
                         window.carpetasData[rName].subcarpetas[sName] = { layerGroup: lg, count: procesarFolder(sub, lg) };
                     });
@@ -401,7 +429,13 @@ async function parsearKMZ(buffer) {
             });
         }
 
-        if (todosLosBounds.length) map.fitBounds(L.latLngBounds(todosLosBounds));
+        // 3. Auto-enfocar el mapa
+        if (todosLosBounds.length) {
+            map.fitBounds(L.latLngBounds(todosLosBounds), { padding: [30, 30] });
+        } else {
+            alert("El archivo se leyó, pero no se extrajeron coordenadas. Verifica si son Puntos o Polígonos.");
+        }
+
         renderizarPanelCapas();
     }
 
