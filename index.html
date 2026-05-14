@@ -419,6 +419,7 @@
             const id = s.getAttribute('id'); if (!id) return;
             styles['#' + id] = {
                 iconHref: s.querySelector('IconStyle Icon href')?.textContent?.trim(),
+                iconColor: s.querySelector('IconStyle color')?.textContent?.trim(), // 🟢 ¡Extraemos el color del punto!
                 lineColor: s.querySelector('LineStyle color')?.textContent?.trim(),
                 polyColor: s.querySelector('PolyStyle color')?.textContent?.trim()
             };
@@ -460,13 +461,34 @@
                 l.bindPopup(popup); if (name) l.bindTooltip(name, { sticky: true });
                 layers.push(l);
             });
-            pm.querySelectorAll('Point').forEach(point => {
+                pm.querySelectorAll('Point').forEach(point => {
                 const c = coords(point.querySelector('coordinates'));
                 if (!c.length) return;
-                const m = style.iconHref
-                    ? L.marker(c[0], { icon: L.icon({ iconUrl: style.iconHref, iconSize: [32,32], iconAnchor: [16,32], popupAnchor: [0,-32] }) })
-                    : L.marker(c[0]);
-                m.bindPopup(popup); if (name) m.bindTooltip(name, { permanent: false, direction: 'top' });
+                
+                // Prioridad: 1. Color del Icono, 2. Color de la Línea, 3. Naranja por defecto
+                let color = hex(style.iconColor) || hex(style.lineColor);
+                
+                // 🛡️ Respaldo por si el KMZ usa colores en el nombre del archivo en lugar de códigos
+                if (!color && style.iconHref) {
+                    const href = style.iconHref.toLowerCase();
+                    if (href.includes('red')) color = '#e31a1c';
+                    else if (href.includes('green')) color = '#33a02c';
+                    else if (href.includes('blue')) color = '#1f78b4';
+                    else if (href.includes('yellow')) color = '#ffeb3b';
+                }
+                color = color || '#ea580c'; // Color final de seguridad
+
+                // Dibujamos un Círculo Vectorial (Soporta colores KML y no da lag)
+                const m = L.circleMarker(c[0], {
+                    radius: 5,             // Tamaño del círculo
+                    fillColor: color,      // Color interno extraído del KMZ
+                    fillOpacity: 1,        // Opacidad total
+                    color: '#ffffff',      // Borde blanco para resaltar
+                    weight: 1.5            // Grosor del borde
+                });
+                
+                m.bindPopup(popup); 
+                if (name) m.bindTooltip(name, { permanent: false, direction: 'top' });
                 layers.push(m);
             });
             return layers;
